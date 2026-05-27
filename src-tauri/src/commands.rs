@@ -15,13 +15,63 @@ use tokio::io::AsyncWriteExt;
 
 use crate::s3_client::AppState;
 
-// Format an AWS SDK error with code + message, and print full debug to stderr.
+// Extract the innermost human-readable message from an AWS SDK debug string.
+// The SDK uses two formats depending on error type:
+//   message: "..."          — direct String field (e.g. ResolveEndpointError)
+//   message: Some("...")    — Option<String> field (e.g. ServiceError, ProviderError)
+fn extract_debug_msg(debug: &str) -> String {
+    let mut best = String::new();
+    // Try both patterns; collect all non-trivial messages and keep the last (deepest).
+    for needle in &[r#"message: ""#, r#"message: Some(""#] {
+        let mut haystack = debug;
+        while let Some(pos) = haystack.find(needle) {
+            let after = &haystack[pos + needle.len()..];
+            if let Some(end) = after.find('"') {
+                let msg = &after[..end];
+                if msg.len() > 4 {
+                    best = msg.to_string();
+                }
+            }
+            // Advance past this occurrence
+            haystack = &haystack[pos + needle.len()..];
+        }
+    }
+    if !best.is_empty() {
+        return best;
+    }
+    // No message field found — return full debug string so caller can still pattern-match
+    debug.to_string()
+}
+
+// Format an AWS SDK error. For DispatchFailure/connector errors the top-level
+// ProvideErrorMetadata is empty — extract the innermost message from the debug
+// repr so callers can pattern-match on it and users see something readable.
 fn fmt_sdk_err(context: &str, e: &(impl std::fmt::Debug + ProvideErrorMetadata)) -> String {
-    let code = e.code().unwrap_or("unknown_code");
-    let message = e.message().unwrap_or("(no message)");
-    let summary = format!("{code}: {message}");
+    let code = e.code();
+    let message = e.message();
+    let summary = match (code, message) {
+        (Some(c), Some(m)) => format!("{c}: {m}"),
+        (Some(c), None)    => c.to_string(),
+        (None, Some(m))    => m.to_string(),
+        (None, None)       => extract_debug_msg(&format!("{e:?}")),
+    };
     eprintln!("[thathoo] {context} — {summary}\n  debug: {e:?}");
     summary
+}
+
+// Detect SSO/session token expiry from error strings. The AWS SDK wraps SSO
+// credential errors in DispatchFailure, so we match on the debug repr too.
+fn is_sso_expired(lower: &str) -> bool {
+    // Classic expiry messages
+    (lower.contains("token") && lower.contains("expir"))
+    || lower.contains("sso") && lower.contains("expir")
+    // SSO UnauthorizedException: "Session token not found or invalid"
+    || lower.contains("unauthorizedexception")
+    || lower.contains("session token not found")
+    || lower.contains("token not found or invalid")
+    // AWS IAM token expiry variants
+    || lower.contains("expiredtoken")
+    || lower.contains("expired token")
 }
 
 // ── Shared types ─────────────────────────────────────────────────────────────
@@ -268,10 +318,12 @@ pub async fn set_profile(
             if lower.contains("access denied") || lower.contains("accessdenied") {
                 // Permission denied on ListAllMyBuckets — not a fatal error
                 vec![]
-            } else if (lower.contains("token") || lower.contains("sso")) && lower.contains("expir") {
+            } else if is_sso_expired(&lower) {
                 return Err(format!("SSO_EXPIRED::{}", profile));
             } else if lower.contains("mfa") || lower.contains("multifactor") || lower.contains("token code") {
                 return Err(format!("MFA_REQUIRED::{}", profile));
+            } else if lower.contains("missing region") || lower.contains("invalid configuration") {
+                return Err(format!("CREDENTIALS_ERROR::Profile '{}' failed credential resolution: {}. If using temporary credentials (source_profile with STS token), they may have expired.", profile, msg));
             } else if lower.contains("credential") || lower.contains("no credentials") {
                 return Err(format!("CREDENTIALS_ERROR::{}", msg));
             } else {

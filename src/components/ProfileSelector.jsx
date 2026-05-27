@@ -8,36 +8,35 @@ function ConnectError({ error, profile }) {
 
   const rawMsg = typeof error === 'string' ? error : (error.message || 'Connection failed')
 
-  if (rawMsg.startsWith('SSO_EXPIRED::')) {
-    const profileName = rawMsg.slice('SSO_EXPIRED::'.length) || profile
-    const cmd = `aws sso login --profile ${profileName}`
+  // Strip known prefixes to get the human-readable message
+  const msg = rawMsg.startsWith('SSO_EXPIRED::')
+    ? rawMsg.slice('SSO_EXPIRED::'.length)
+    : rawMsg.startsWith('CREDENTIALS_ERROR::')
+    ? rawMsg.slice('CREDENTIALS_ERROR::'.length)
+    : rawMsg.startsWith('MFA_REQUIRED::')
+    ? rawMsg.slice('MFA_REQUIRED::'.length)
+    : rawMsg
 
-    const handleCopy = () => {
-      navigator.clipboard.writeText(cmd).then(() => {
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      })
-    }
+  const isSso = rawMsg.startsWith('SSO_EXPIRED::')
+  const ssoProfile = isSso ? (msg || profile) : null
+  const cmd = isSso ? `aws sso login --profile ${ssoProfile}` : null
 
-    return (
-      <div className="connect-error-box">
-        <div className="connect-error-title">SSO token expired. Re-authenticate:</div>
+  const handleCopy = () => {
+    navigator.clipboard.writeText(cmd).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+
+  return (
+    <div className="connect-error-box">
+      <div className="connect-error-msg">{msg}</div>
+      {isSso && (
         <div className="connect-error-cmd-row">
           <code className="connect-error-cmd">{cmd}</code>
           <button className="btn-copy" onClick={handleCopy}>{copied ? 'Copied!' : 'Copy'}</button>
         </div>
-      </div>
-    )
-  }
-
-  const displayMsg = rawMsg.startsWith('CREDENTIALS_ERROR::')
-    ? rawMsg.slice('CREDENTIALS_ERROR::'.length)
-    : rawMsg
-
-  return (
-    <div className="connect-error-box">
-      <div className="connect-error-title">Connection failed:</div>
-      <div className="connect-error-msg">{displayMsg}</div>
+      )}
     </div>
   )
 }
@@ -95,13 +94,6 @@ export default function ProfileSelector({ onConnected }) {
     setMfaToken('')
   }
 
-  // Group profiles by account_id
-  const grouped = profiles.reduce((acc, p) => {
-    const key = p.account_id || 'Other'
-    if (!acc[key]) acc[key] = []
-    acc[key].push(p)
-    return acc
-  }, {})
 
   return (
     <div className="profile-screen">
@@ -127,14 +119,10 @@ export default function ProfileSelector({ onConnected }) {
                 {profiles.length === 0 && (
                   <option value="">No profiles found</option>
                 )}
-                {Object.entries(grouped).map(([account, profs]) => (
-                  <optgroup key={account} label={account === 'Other' ? 'Profiles' : `Account ${account}`}>
-                    {profs.map(p => (
-                      <option key={p.name} value={p.name}>
-                        {p.name}{p.role ? ` (${p.role})` : ''}{p.mfa ? ' 🔐' : ''}{p.sso ? ' [SSO]' : ''}
-                      </option>
-                    ))}
-                  </optgroup>
+                {profiles.map(p => (
+                  <option key={p.name} value={p.name}>
+                    {p.name}{p.role ? ` (${p.role})` : ''}{p.mfa ? ' 🔐' : ''}{p.sso ? ' [SSO]' : ''}
+                  </option>
                 ))}
               </select>
             )}
