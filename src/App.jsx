@@ -26,7 +26,16 @@ export default function App() {
     () => localStorage.getItem('theme') || 'night-owl'
   )
   const [previewWidth, setPreviewWidth] = useState(380)
-  const dragging = useRef(false)
+  // Task 8: resizable sidebar
+  const [sidebarWidth, setSidebarWidth] = useState(
+    () => Number(localStorage.getItem('thathoo:sidebar-width')) || 220
+  )
+  // Task 7: prefix navigation history
+  const [prefixHistory, setPrefixHistory] = useState([''])
+  const [historyIdx, setHistoryIdx] = useState(0)
+
+  const previewDragging = useRef(false)
+  const sidebarDragging = useRef(false)
 
   useEffect(() => {
     const t = theme === 'default' ? null : theme
@@ -34,6 +43,34 @@ export default function App() {
     else document.documentElement.removeAttribute('data-theme')
     localStorage.setItem('theme', theme)
   }, [theme])
+
+  // Task 8: persist sidebar width
+  useEffect(() => {
+    localStorage.setItem('thathoo:sidebar-width', sidebarWidth)
+  }, [sidebarWidth])
+
+  // Task 7: keyboard shortcuts for back/forward — inline logic to avoid stale closure
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (stage !== 'browser') return
+      if (e.metaKey && e.key === '[') {
+        e.preventDefault()
+        if (historyIdx <= 0) return
+        const newIdx = historyIdx - 1
+        setHistoryIdx(newIdx)
+        setPrefix(prefixHistory[newIdx])
+      }
+      if (e.metaKey && e.key === ']') {
+        e.preventDefault()
+        if (historyIdx >= prefixHistory.length - 1) return
+        const newIdx = historyIdx + 1
+        setHistoryIdx(newIdx)
+        setPrefix(prefixHistory[newIdx])
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [stage, historyIdx, prefixHistory])
 
   const storageKey = (p) => `thathoo:manual-buckets:${p}`
 
@@ -55,11 +92,42 @@ export default function App() {
     setStage('browser')
   }
 
+  // Task 7: navigating to a new prefix pushes history
+  const navigateToPrefix = (newPrefix) => {
+    setPrefix(newPrefix)
+    setPrefixHistory(prev => {
+      const sliced = prev.slice(0, historyIdx + 1)
+      return [...sliced, newPrefix]
+    })
+    setHistoryIdx(i => i + 1)
+  }
+
   const handleBucketSelect = (bucket) => {
     setActiveBucket(bucket)
     setPrefix('')
     setPreview(null)
+    // reset history for new bucket
+    setPrefixHistory([''])
+    setHistoryIdx(0)
   }
+
+  // Task 7: back/forward handlers
+  const handleBack = () => {
+    if (historyIdx <= 0) return
+    const newIdx = historyIdx - 1
+    setHistoryIdx(newIdx)
+    setPrefix(prefixHistory[newIdx])
+  }
+
+  const handleForward = () => {
+    if (historyIdx >= prefixHistory.length - 1) return
+    const newIdx = historyIdx + 1
+    setHistoryIdx(newIdx)
+    setPrefix(prefixHistory[newIdx])
+  }
+
+  const canGoBack = historyIdx > 0
+  const canGoForward = historyIdx < prefixHistory.length - 1
 
   const handleAddBucket = () => {
     const name = newBucketName.trim()
@@ -79,17 +147,37 @@ export default function App() {
     if (activeBucket === name) { setActiveBucket(null); setPreview(null) }
   }
 
+  // Preview pane resize (existing)
   const handleResizeStart = (e) => {
     e.preventDefault()
-    dragging.current = true
+    previewDragging.current = true
     const startX = e.clientX
     const startW = previewWidth
     const onMove = (e) => {
-      if (!dragging.current) return
+      if (!previewDragging.current) return
       setPreviewWidth(Math.max(220, Math.min(700, startW + startX - e.clientX)))
     }
     const onUp = () => {
-      dragging.current = false
+      previewDragging.current = false
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  // Task 8: sidebar resize
+  const handleSidebarResizeStart = (e) => {
+    e.preventDefault()
+    sidebarDragging.current = true
+    const startX = e.clientX
+    const startW = sidebarWidth
+    const onMove = (e) => {
+      if (!sidebarDragging.current) return
+      setSidebarWidth(Math.max(150, Math.min(400, startW + e.clientX - startX)))
+    }
+    const onUp = () => {
+      sidebarDragging.current = false
       window.removeEventListener('mousemove', onMove)
       window.removeEventListener('mouseup', onUp)
     }
@@ -104,6 +192,8 @@ export default function App() {
     setActiveBucket(null)
     setPrefix('')
     setPreview(null)
+    setPrefixHistory([''])
+    setHistoryIdx(0)
   }
 
   return (
@@ -115,7 +205,8 @@ export default function App() {
 
         {stage === 'browser' && (
           <div className="browser-layout">
-            <aside className="sidebar">
+            {/* Task 8: sidebar with dynamic width + resize handle */}
+            <aside className="sidebar" style={{ width: sidebarWidth }}>
               <div className="sidebar-label-row">
                 <span className="sidebar-label">BUCKETS</span>
                 <button
@@ -149,20 +240,28 @@ export default function App() {
                 manualNames={new Set(loadManualBuckets(profile))}
                 onRemove={handleRemoveBucket}
               />
+
+              {/* Task 8: sidebar resize handle on right edge */}
+              <div className="sidebar-resize-handle" onMouseDown={handleSidebarResizeStart} />
             </aside>
 
             <section className="content">
+              {/* Task 9: differentiated empty states */}
               {activeBucket ? (
                 <ObjectBrowser
                   bucket={activeBucket}
                   prefix={prefix}
-                  onPrefixChange={setPrefix}
+                  onPrefixChange={navigateToPrefix}
                   onPreview={setPreview}
+                  onBack={handleBack}
+                  onForward={handleForward}
+                  canGoBack={canGoBack}
+                  canGoForward={canGoForward}
                 />
               ) : (
                 <div className="empty-state">
                   <span className="empty-icon">◈</span>
-                  <p>Select a bucket to browse</p>
+                  <p>Select a bucket from the sidebar to start browsing</p>
                 </div>
               )}
             </section>

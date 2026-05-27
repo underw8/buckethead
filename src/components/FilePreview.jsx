@@ -39,6 +39,11 @@ export default function FilePreview({ preview, onClose, width }) {
   const [textContent, setTextContent] = useState(null)
   const [textLoading, setTextLoading] = useState(false)
   const [textError, setTextError] = useState(null)
+  // Task 5: image dimensions
+  const [imgDims, setImgDims] = useState(null)
+
+  // Task 5: reset dims when file changes
+  useEffect(() => { setImgDims(null) }, [key])
 
   useEffect(() => {
     if (type !== 'text') return
@@ -64,8 +69,13 @@ export default function FilePreview({ preview, onClose, width }) {
 
       <div className="preview-body">
         {type === 'image' && (
-          <img className="preview-img" src={url} alt={name}
-            onError={e => { e.target.style.display = 'none' }} />
+          <img
+            className="preview-img"
+            src={url}
+            alt={name}
+            onLoad={e => setImgDims({ w: e.target.naturalWidth, h: e.target.naturalHeight })}
+            onError={e => { e.target.style.display = 'none' }}
+          />
         )}
         {type === 'pdf' && (
           <iframe className="preview-iframe" src={url} title={name} />
@@ -99,6 +109,13 @@ export default function FilePreview({ preview, onClose, width }) {
           <span className="meta-key">MODIFIED</span>
           <span className="meta-val">{formatDate(modified)}</span>
         </div>
+        {/* Task 5: image dimensions row */}
+        {imgDims && (
+          <div className="meta-row">
+            <span className="meta-key">DIMENSIONS</span>
+            <span className="meta-val">{imgDims.w} × {imgDims.h} px</span>
+          </div>
+        )}
         <div className="meta-row">
           <span className="meta-key">KEY</span>
           <span className="meta-val"
