@@ -1,9 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import ProfileSelector from './components/ProfileSelector'
 import BucketList from './components/BucketList'
 import ObjectBrowser from './components/ObjectBrowser'
 import FilePreview from './components/FilePreview'
 import './app.css'
+
+const LANGS = [
+  { code: 'en', label: 'EN' },
+  { code: 'vi', label: 'VI' },
+  { code: 'ja', label: 'JA' },
+]
 
 function migrateLocalStorage() {
   const oldPrefix = 'thathoo:';
@@ -29,6 +36,13 @@ const THEMES = [
 ]
 
 export default function App() {
+  const { t, i18n } = useTranslation()
+
+  const handleLangChange = (code) => {
+    i18n.changeLanguage(code)
+    localStorage.setItem('buckethead:lang', code)
+  }
+
   const [stage, setStage] = useState('profile')
   const [profile, setProfile] = useState(null)
   const [buckets, setBuckets] = useState([])
@@ -252,9 +266,9 @@ export default function App() {
     <div className="app">
       {updateAvailable && (
         <div className="update-banner">
-          <span>Update available: v{updateAvailable.version}</span>
+          <span>{t('app.update_available', { version: updateAvailable.version })}</span>
           <button className="btn-update" onClick={handleInstallUpdate} disabled={updateInstalling}>
-            {updateInstalling ? 'Installing…' : 'Install & Restart'}
+            {updateInstalling ? t('app.installing') : t('app.install_restart')}
           </button>
           <button className="btn-ghost btn-update-dismiss" onClick={() => setUpdateAvailable(null)}>✕</button>
         </div>
@@ -269,10 +283,10 @@ export default function App() {
             {/* Task 8: sidebar with dynamic width + resize handle */}
             <aside className="sidebar" style={{ width: sidebarWidth }}>
               <div className="sidebar-label-row">
-                <span className="sidebar-label">BUCKETS</span>
+                <span className="sidebar-label">{t('app.buckets')}</span>
                 <button
                   className="sidebar-add-btn"
-                  title="Add bucket"
+                  title={t('app.add_bucket_title')}
                   onClick={() => setAddingBucket(v => !v)}
                 >+</button>
               </div>
@@ -282,7 +296,7 @@ export default function App() {
                   <input
                     className="sidebar-add-input"
                     autoFocus
-                    placeholder="bucket-name"
+                    placeholder={t('app.bucket_name_placeholder')}
                     value={newBucketName}
                     onChange={e => setNewBucketName(e.target.value)}
                     onKeyDown={e => {
@@ -290,7 +304,7 @@ export default function App() {
                       if (e.key === 'Escape') { setAddingBucket(false); setNewBucketName('') }
                     }}
                   />
-                  <button className="btn-ghost" onClick={handleAddBucket}>Add</button>
+                  <button className="btn-ghost" onClick={handleAddBucket}>{t('app.add')}</button>
                 </div>
               )}
 
@@ -306,7 +320,7 @@ export default function App() {
               <button
                 type="button"
                 className="sidebar-resize-handle"
-                aria-label="Resize sidebar"
+                aria-label={t('app.resize_sidebar')}
                 onMouseDown={handleSidebarResizeStart}
                 onKeyDown={(e) => {
                   if (e.key === 'ArrowLeft') setSidebarWidth(w => Math.max(150, w - 10))
@@ -331,7 +345,7 @@ export default function App() {
               ) : (
                 <div className="empty-state">
                   <span className="empty-icon">◈</span>
-                  <p>Select a bucket from the sidebar to start browsing</p>
+                  <p>{t('app.select_bucket')}</p>
                 </div>
               )}
             </section>
@@ -341,7 +355,7 @@ export default function App() {
                 <button
                   type="button"
                   className="preview-resize-handle"
-                  aria-label="Resize preview"
+                  aria-label={t('app.resize_preview')}
                   onMouseDown={handleResizeStart}
                   onKeyDown={(e) => {
                     if (e.key === 'ArrowLeft') setPreviewWidth(w => Math.min(700, w + 10))
@@ -364,17 +378,27 @@ export default function App() {
           <span className="logo-mark">◈</span>
           <span className="logo-text">BUCKETHEAD</span>
         </div>
-        <div className="theme-swatches">
-          {THEMES.map(t => (
+        <div className="lang-switcher">
+          {LANGS.map(lng => (
             <button
-              key={t.id}
+              key={lng.code}
               type="button"
-              className={`theme-swatch${theme === t.id ? ' active' : ''}`}
-              style={{ background: t.color }}
-              title={t.label}
-              aria-label={`${t.label} theme`}
-              aria-pressed={theme === t.id}
-              onClick={() => setTheme(t.id)}
+              className={`lang-btn${i18n.language === lng.code ? ' active' : ''}`}
+              onClick={() => handleLangChange(lng.code)}
+            >{lng.label}</button>
+          ))}
+        </div>
+        <div className="theme-swatches">
+          {THEMES.map(thm => (
+            <button
+              key={thm.id}
+              type="button"
+              className={`theme-swatch${theme === thm.id ? ' active' : ''}`}
+              style={{ background: thm.color }}
+              title={thm.label}
+              aria-label={t('app.theme_label', { label: thm.label })}
+              aria-pressed={theme === thm.id}
+              onClick={() => setTheme(thm.id)}
             />
           ))}
         </div>
@@ -385,7 +409,7 @@ export default function App() {
               {profile}
             </span>
             <button className="btn-ghost" onClick={handleDisconnect}>
-              Disconnect
+              {t('app.disconnect')}
             </button>
           </div>
         )}

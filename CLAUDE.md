@@ -63,11 +63,24 @@ Five themes defined as `[data-theme="..."]` CSS variable overrides in `app.css`.
 
 `src-tauri/capabilities/default.json` grants: `core:default`, `updater:allow-check`, `updater:allow-download-and-install`, `process:allow-restart`. Adding a new plugin that exposes JS commands requires adding its permission here.
 
+### Internationalisation (i18n)
+
+`i18next` + `react-i18next`. Initialised in `src/i18n/index.js`, imported once in `main.jsx`.
+
+Locale files: `src/i18n/locales/{en,vi,ja}.json` — flat namespaced keys (`app.*`, `profile.*`, `bucket.*`, `browser.*`, `preview.*`).
+
+All components use `useTranslation()` — no hardcoded UI strings anywhere. `formatDate()` in `ObjectBrowser` and `FilePreview` accepts `i18n.language` and maps it to a `toLocaleString` locale via `LOCALE_MAP = { en: 'en-US', vi: 'vi-VN', ja: 'ja-JP' }`.
+
+Language switcher (EN/VI/JA buttons) lives in the app footer. Selection persists to `buckethead:lang` localStorage key and is read back on init.
+
+Adding a new language: add `src/i18n/locales/<code>.json`, add to `resources` in `src/i18n/index.js`, add to `LANGS` array in `App.jsx`, and add to `LOCALE_MAP` in `ObjectBrowser.jsx` and `FilePreview.jsx`.
+
 ### LocalStorage keys
 
 | Key | Contents |
 |-----|----------|
 | `theme` | active theme id |
+| `buckethead:lang` | active language code (`en`, `vi`, `ja`) |
 | `buckethead:last-profile` | last successfully connected AWS profile name |
 | `buckethead:manual-buckets:<profile>` | JSON array of manually added bucket names |
 | `buckethead:sidebar-width` | sidebar width in px (number) |

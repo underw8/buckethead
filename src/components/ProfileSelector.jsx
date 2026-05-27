@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { aws } from '../bridge'
 
 function ConnectError({ error, profile }) {
+  const { t } = useTranslation()
   const [copied, setCopied] = useState(false)
 
   if (!error) return null
@@ -31,7 +33,7 @@ function ConnectError({ error, profile }) {
       {isSso && (
         <div className="connect-error-cmd-row">
           <code className="connect-error-cmd">{cmd}</code>
-          <button className="btn-copy" onClick={handleCopy}>{copied ? 'Copied!' : 'Copy'}</button>
+          <button className="btn-copy" onClick={handleCopy}>{copied ? t('profile.copied') : t('profile.copy')}</button>
         </div>
       )}
     </div>
@@ -39,6 +41,7 @@ function ConnectError({ error, profile }) {
 }
 
 export default function ProfileSelector({ onConnected }) {
+  const { t } = useTranslation()
   const [profiles, setProfiles] = useState([])
   const [selected, setSelected] = useState('')
   const [loading, setLoading] = useState(false)
@@ -58,7 +61,7 @@ export default function ProfileSelector({ onConnected }) {
           setSelected(found ? found.name : p[0].name)
         }
       })
-      .catch(() => setConnectError('Could not read ~/.aws/credentials'))
+      .catch(() => setConnectError(t('profile.read_credentials_error')))
       .finally(() => setLoadingProfiles(false))
   }, [])
 
@@ -73,7 +76,7 @@ export default function ProfileSelector({ onConnected }) {
       localStorage.setItem('buckethead:last-profile', selected)
       onConnected({ profile: selected, buckets })
     } catch (e) {
-      const msg = typeof e === 'string' ? e : (e.message || 'Connection failed')
+      const msg = typeof e === 'string' ? e : (e.message || t('profile.connection_failed'))
       if (msg.startsWith('MFA_REQUIRED::')) {
         setMfaRequired(true)
       } else {
@@ -96,19 +99,19 @@ export default function ProfileSelector({ onConnected }) {
     <div className="profile-screen">
       <div className="profile-card">
         <div className="profile-card-header">
-          <div className="profile-card-title">Connect to AWS</div>
-          <div className="profile-card-sub">Select a local profile from ~/.aws/credentials</div>
+          <div className="profile-card-title">{t('profile.connect_to_aws')}</div>
+          <div className="profile-card-sub">{t('profile.select_profile_hint')}</div>
         </div>
 
         <div className="profile-card-body">
           <div className="form-group">
             {loadingProfiles ? (
               <div style={{ color: 'var(--text-2)', fontSize: 11, padding: '8px 0' }}>
-                <span className="spinner" />Reading profiles…
+                <span className="spinner" />{t('profile.reading_profiles')}
               </div>
             ) : (
               <>
-                <label className="form-label" htmlFor="profile-select">AWS Profile</label>
+                <label className="form-label" htmlFor="profile-select">{t('profile.aws_profile')}</label>
                 <select
                   id="profile-select"
                   className="form-select"
@@ -116,7 +119,7 @@ export default function ProfileSelector({ onConnected }) {
                   onChange={handleProfileChange}
                 >
                   {profiles.length === 0 && (
-                    <option value="">No profiles found</option>
+                    <option value="">{t('profile.no_profiles')}</option>
                   )}
                   {profiles.map(p => (
                     <option key={p.name} value={p.name}>
@@ -134,7 +137,7 @@ export default function ProfileSelector({ onConnected }) {
 
           {mfaRequired && (
             <div className="mfa-prompt">
-              <div className="connect-error-title">MFA token required</div>
+              <div className="connect-error-title">{t('profile.mfa_required')}</div>
               <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                 <input
                   className="form-input mfa-input"
@@ -157,13 +160,13 @@ export default function ProfileSelector({ onConnected }) {
                       localStorage.setItem('buckethead:last-profile', selected)
                       onConnected({ profile: selected, buckets })
                     } catch (e) {
-                      setConnectError(typeof e === 'string' ? e : (e.message || 'MFA verification failed'))
+                      setConnectError(typeof e === 'string' ? e : (e.message || t('profile.mfa_failed')))
                       setMfaRequired(false)
                     } finally {
                       setMfaLoading(false)
                     }
                   }}
-                >{mfaLoading ? 'Verifying…' : 'Submit'}</button>
+                >{mfaLoading ? t('profile.verifying') : t('profile.submit')}</button>
               </div>
             </div>
           )}
@@ -175,7 +178,7 @@ export default function ProfileSelector({ onConnected }) {
             onClick={handleConnect}
             disabled={loading || !selected || loadingProfiles || mfaRequired}
           >
-            {loading ? 'Connecting…' : 'Connect →'}
+            {loading ? t('profile.connecting') : t('profile.connect')}
           </button>
         </div>
       </div>

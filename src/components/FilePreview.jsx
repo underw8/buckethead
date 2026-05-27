@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { s3, aws } from '../bridge'
+
+const LOCALE_MAP = { en: 'en-US', vi: 'vi-VN', ja: 'ja-JP' }
 
 function formatSize(bytes) {
   if (!bytes && bytes !== 0) return '—'
@@ -9,9 +12,9 @@ function formatSize(bytes) {
   return `${(bytes / 1024 ** 3).toFixed(2)} GB`
 }
 
-function formatDate(d) {
+function formatDate(d, lang) {
   if (!d) return '—'
-  return new Date(d).toLocaleString('en-US', {
+  return new Date(d).toLocaleString(LOCALE_MAP[lang] || 'en-US', {
     year: 'numeric', month: 'short', day: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: false,
   })
@@ -35,6 +38,7 @@ function indentXml(xml) {
 }
 
 export default function FilePreview({ preview, onClose, width }) {
+  const { t, i18n } = useTranslation()
   const { bucket, key, name, url, type, size, modified, ext } = preview
   const [textContent, setTextContent] = useState(null)
   const [textLoading, setTextLoading] = useState(false)
@@ -57,7 +61,7 @@ export default function FilePreview({ preview, onClose, width }) {
     setTextLoading(true)
     s3.getObjectText(bucket, key)
       .then(raw => setTextContent(ext === 'xml' ? indentXml(raw) : raw))
-      .catch(e => setTextError(typeof e === 'string' ? e : e.message || 'Failed to load'))
+      .catch(e => setTextError(typeof e === 'string' ? e : e.message || t('preview.failed_to_load')))
       .finally(() => setTextLoading(false))
   }, [bucket, key, type, ext])
 
@@ -146,7 +150,7 @@ export default function FilePreview({ preview, onClose, width }) {
           <iframe className="preview-iframe" src={url} title={name} />
         )}
         {type === 'text' && (() => {
-          if (textLoading) return <div style={{ padding: 20, color: 'var(--text-2)', fontSize: 11 }}><span className="spinner" />Loading…</div>
+          if (textLoading) return <div style={{ padding: 20, color: 'var(--text-2)', fontSize: 11 }}><span className="spinner" />{t('preview.loading')}</div>
           if (textError) return <div style={{ padding: 16, color: 'var(--red)', fontSize: 11 }}>{textError}</div>
           if (highlighted) return <div className="preview-highlighted" dangerouslySetInnerHTML={{ __html: highlighted }} />
           return <pre className="preview-text">{textContent}</pre>
@@ -154,30 +158,30 @@ export default function FilePreview({ preview, onClose, width }) {
         {type === 'binary' && (
           <div className="preview-unsupported">
             <div className="preview-unsupported-icon">◫</div>
-            <div style={{ fontSize: 12, color: 'var(--text-1)' }}>.{ext} files cannot be previewed</div>
-            <div style={{ fontSize: 11 }}>Download to open locally</div>
+            <div style={{ fontSize: 12, color: 'var(--text-1)' }}>{t('preview.cannot_preview', { ext })}</div>
+            <div style={{ fontSize: 11 }}>{t('preview.download_hint')}</div>
           </div>
         )}
       </div>
 
       <div className="preview-meta">
         <div className="meta-row">
-          <span className="meta-key">SIZE</span>
+          <span className="meta-key">{t('preview.meta_size')}</span>
           <span className="meta-val">{formatSize(size)}</span>
         </div>
         <div className="meta-row">
-          <span className="meta-key">MODIFIED</span>
-          <span className="meta-val">{formatDate(modified)}</span>
+          <span className="meta-key">{t('preview.meta_modified')}</span>
+          <span className="meta-val">{formatDate(modified, i18n.language)}</span>
         </div>
         {/* Task 5: image dimensions row */}
         {imgDims && (
           <div className="meta-row">
-            <span className="meta-key">DIMENSIONS</span>
-            <span className="meta-val">{imgDims.w} × {imgDims.h} px</span>
+            <span className="meta-key">{t('preview.meta_dimensions')}</span>
+            <span className="meta-val">{t('preview.dimensions_value', { w: imgDims.w, h: imgDims.h })}</span>
           </div>
         )}
         <div className="meta-row">
-          <span className="meta-key">KEY</span>
+          <span className="meta-key">{t('preview.meta_key')}</span>
           <span className="meta-val"
             style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'right' }}
             title={key}>
@@ -192,7 +196,7 @@ export default function FilePreview({ preview, onClose, width }) {
             onClick={() => setMetaExpanded(v => !v)}
             disabled={metaLoading && !meta}
           >
-            {metaLoading && !meta ? 'Object Metadata…' : `${expandIcon} Object Metadata`}
+            {metaLoading && !meta ? t('preview.metadata_loading') : `${expandIcon} ${t('preview.metadata')}`}
           </button>
         </div>
 
@@ -200,31 +204,31 @@ export default function FilePreview({ preview, onClose, width }) {
           <div className="meta-extra-rows">
             {meta.content_type && (
               <div className="meta-row">
-                <span className="meta-key">CONTENT-TYPE</span>
+                <span className="meta-key">{t('preview.meta_content_type')}</span>
                 <span className="meta-val">{meta.content_type}</span>
               </div>
             )}
             {meta.storage_class && (
               <div className="meta-row">
-                <span className="meta-key">STORAGE CLASS</span>
+                <span className="meta-key">{t('preview.meta_storage_class')}</span>
                 <span className="meta-val">{meta.storage_class}</span>
               </div>
             )}
             {meta.cache_control && (
               <div className="meta-row">
-                <span className="meta-key">CACHE-CONTROL</span>
+                <span className="meta-key">{t('preview.meta_cache_control')}</span>
                 <span className="meta-val">{meta.cache_control}</span>
               </div>
             )}
             {meta.content_encoding && (
               <div className="meta-row">
-                <span className="meta-key">ENCODING</span>
+                <span className="meta-key">{t('preview.meta_encoding')}</span>
                 <span className="meta-val">{meta.content_encoding}</span>
               </div>
             )}
             {meta.user_meta && meta.user_meta.length > 0 && meta.user_meta.map(([k, v]) => (
               <div className="meta-row" key={k}>
-                <span className="meta-key" title={`x-amz-meta-${k}`}>{k}</span>
+                <span className="meta-key" title={t('preview.meta_user_prefix', { k })}>{k}</span>
                 <span className="meta-val">{v}</span>
               </div>
             ))}
@@ -248,8 +252,8 @@ export default function FilePreview({ preview, onClose, width }) {
       )}
 
       <div className="preview-actions">
-        <button className="btn-primary" onClick={handleDownload} style={{ flex: 1 }}>↓ Download</button>
-        <button className="btn-ghost" onClick={handleOpenExternal}>↗ Open</button>
+        <button className="btn-primary" onClick={handleDownload} style={{ flex: 1 }}>{t('preview.download')}</button>
+        <button className="btn-ghost" onClick={handleOpenExternal}>{t('preview.open')}</button>
       </div>
     </div>
   )

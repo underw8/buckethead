@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { s3 } from '../bridge'
+
+const LOCALE_MAP = { en: 'en-US', vi: 'vi-VN', ja: 'ja-JP' }
 
 const FILE_ICONS = {
   jpg: '🖼', jpeg: '🖼', png: '🖼', gif: '🖼', webp: '🖼', svg: '🖼', ico: '🖼',
@@ -29,9 +32,9 @@ function formatSize(bytes) {
   return `${(bytes / 1024 ** 3).toFixed(2)} GB`
 }
 
-function formatDate(d) {
+function formatDate(d, lang) {
   if (!d) return '—'
-  return new Date(d).toLocaleString('en-US', {
+  return new Date(d).toLocaleString(LOCALE_MAP[lang] || 'en-US', {
     year: 'numeric', month: 'short', day: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: false,
   })
@@ -42,6 +45,8 @@ function stripPrefix(key, prefix) {
 }
 
 export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPreview, onBack, onForward, canGoBack, canGoForward }) {
+  const { t, i18n } = useTranslation()
+
   const [items, setItems] = useState({ folders: [], objects: [] })
   const [loading, setLoading] = useState(false)
   const [nextToken, setNextToken] = useState(null)
@@ -134,7 +139,7 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
 
   const handleFileClick = async (obj) => {
     if (obj.storage_class && ARCHIVED_CLASSES.has(obj.storage_class)) {
-      setPresignError(`Object is in ${obj.storage_class} — restore required before preview/download`)
+      setPresignError(t('browser.archived_error', { class: obj.storage_class }))
       return
     }
     try {
@@ -214,13 +219,13 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
             className="btn-ghost btn-nav-hist"
             onClick={onBack}
             disabled={!canGoBack}
-            title="Go back (⌘[)"
+            title={t('browser.go_back')}
           >←</button>
           <button
             className="btn-ghost btn-nav-hist"
             onClick={onForward}
             disabled={!canGoForward}
-            title="Go forward (⌘])"
+            title={t('browser.go_forward')}
           >→</button>
         </div>
 
@@ -244,13 +249,14 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
               }}
               onBlur={() => setEditingPath(false)}
               placeholder={`${bucket}/path/to/folder/`}
+              aria-label={t('browser.path_hint')}
               autoFocus
             />
           ) : (
             <div
               className="breadcrumb-wrap"
               onClick={() => { setEditingPath(true); setPathInput(prefix || '') }}
-              title="Click or press / to jump to path"
+              title={t('browser.path_hint')}
             >
               {crumbs.map((c, i) => (
                 <span key={c.prefix} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -272,19 +278,19 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
           {hasItems && (
             <input
               className="toolbar-filter-input"
-              placeholder="Filter…"
+              placeholder={t('browser.filter_placeholder')}
               value={nameFilter}
               onChange={e => setNameFilter(e.target.value)}
             />
           )}
-          {!loading && <span className="object-count">{totalCount} items</span>}
-          <button className="btn-ghost" onClick={() => load(true)}>↺ Refresh</button>
+          {!loading && <span className="object-count">{t('browser.items_count', { count: totalCount })}</span>}
+          <button className="btn-ghost" onClick={() => load(true)}>{t('browser.refresh')}</button>
         </div>
       </div>
 
       {presignError && (
         <div className="presign-error-banner">
-          <span className="presign-error-text">Failed to generate preview link: {presignError}</span>
+          <span className="presign-error-text">{t('browser.presign_error', { error: presignError })}</span>
           <button className="presign-error-dismiss" onClick={() => setPresignError(null)}>✕</button>
         </div>
       )}
@@ -294,7 +300,7 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
         className="file-table-wrap"
         ref={tableWrapRef}
         role="grid"
-        aria-label="S3 objects"
+        aria-label={t('browser.grid_label')}
         tabIndex={0}
         onKeyDown={handleKeyDown}
         style={{ outline: 'none' }}
@@ -304,16 +310,16 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
         <table className="file-table">
           <thead>
             <tr>
-              <th onClick={() => handleSort('name')}>Name {sortIndicator('name')}</th>
-              <th onClick={() => handleSort('size')}>Size {sortIndicator('size')}</th>
-              <th onClick={() => handleSort('date')}>Modified {sortIndicator('date')}</th>
-              <th>Type</th>
+              <th onClick={() => handleSort('name')}>{t('browser.col_name')} {sortIndicator('name')}</th>
+              <th onClick={() => handleSort('size')}>{t('browser.col_size')} {sortIndicator('size')}</th>
+              <th onClick={() => handleSort('date')}>{t('browser.col_modified')} {sortIndicator('date')}</th>
+              <th>{t('browser.col_type')}</th>
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr className="loading-row">
-                <td colSpan={4}><span className="spinner" />Loading…</td>
+                <td colSpan={4}><span className="spinner" />{t('browser.loading')}</td>
               </tr>
             )}
 
@@ -336,7 +342,7 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
                   </td>
                   <td className="file-size">—</td>
                   <td className="file-date">—</td>
-                  <td className="file-ext">folder</td>
+                  <td className="file-ext">{t('browser.folder')}</td>
                 </tr>
               )
             })}
@@ -362,21 +368,21 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
                       <span className="file-type-icon">{getIcon(obj.key)}</span>
                       <span className="file-name-text">{name}</span>
                       {isArchived && (
-                        <span className="storage-class-badge archived" title={`Storage class: ${obj.storage_class}`}>
+                        <span className="storage-class-badge archived" title={t('browser.storage_class', { class: obj.storage_class })}>
                           {obj.storage_class}
                         </span>
                       )}
                       <button
                         className="copy-uri-btn"
-                        title={`Copy s3://${bucket}/${obj.key}`}
+                        title={t('browser.copy_uri', { bucket, key: obj.key })}
                         onClick={e => handleCopyUri(e, obj.key)}
                       >
-                        {isCopied ? <span className="copy-uri-feedback">Copied!</span> : '⎘'}
+                        {isCopied ? <span className="copy-uri-feedback">{t('browser.copied')}</span> : '⎘'}
                       </button>
                     </div>
                   </td>
                   <td className="file-size">{formatSize(obj.size)}</td>
-                  <td className="file-date">{formatDate(obj.modified)}</td>
+                  <td className="file-date">{formatDate(obj.modified, i18n.language)}</td>
                   <td className="file-ext">{ext || '—'}</td>
                 </tr>
               )
@@ -386,7 +392,7 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
               <tr className="load-more-row">
                 <td colSpan={4}>
                   <button className="btn-load-more" onClick={() => load(false)} disabled={loadingMore}>
-                    {loadingMore ? <><span className="spinner" />Loading…</> : 'Load more'}
+                    {loadingMore ? <><span className="spinner" />{t('browser.loading')}</> : t('browser.load_more')}
                   </button>
                 </td>
               </tr>
@@ -396,7 +402,7 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
             {!loading && !error && totalCount === 0 && (
               <tr>
                 <td colSpan={4} style={{ textAlign: 'center', padding: 40, color: 'var(--text-2)' }}>
-                  This folder is empty — 0 objects, 0 folders
+                  {t('browser.empty_folder')}
                 </td>
               </tr>
             )}
