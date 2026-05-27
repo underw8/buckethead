@@ -1178,3 +1178,48 @@ body {
 .breadcrumb-wrap:hover {
   background: var(--bg-2);
 }
+
+/* ── Storage class badge ── */
+.storage-class-badge {
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(var(--blue-rgb, 88, 166, 255), 0.15);
+  color: var(--blue, #58a6ff);
+  border: 1px solid rgba(88, 166, 255, 0.3);
+  flex-shrink: 0;
+  margin-left: 4px;
+  font-family: var(--font-mono);
+}
+.storage-class-badge.archived {
+  background: rgba(255, 165, 0, 0.12);
+  color: #e8a000;
+  border-color: rgba(255, 165, 0, 0.3);
+}
+
+/* ── Object metadata expand button ── */
+.meta-section-toggle {
+  padding: 4px 12px 2px;
+}
+.meta-expand-btn {
+  background: none;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 0;
+  width: 100%;
+  text-align: left;
+  transition: color 0.15s;
+}
+.meta-expand-btn:hover:not(:disabled) {
+  color: var(--text-1);
+}
+.meta-expand-btn:disabled {
+  cursor: default;
+}
+.meta-extra-rows {
+  border-top: 1px solid var(--border);
+  margin-top: 2px;
+}
