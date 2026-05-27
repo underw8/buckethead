@@ -1,0 +1,56 @@
+# GitHub Actions release workflow for AWS Thathoo
+#
+# Triggered on version tags (e.g. v1.2.3). Builds a universal macOS DMG
+# (Apple Silicon + Intel) via Tauri and publishes a draft GitHub Release.
+#
+# Notarization requires the following repository secrets:
+#   APPLE_CERTIFICATE            - Base64-encoded .p12 signing certificate
+#   APPLE_CERTIFICATE_PASSWORD   - Password for the .p12 certificate
+#   APPLE_SIGNING_IDENTITY       - Certificate CN (e.g. "Developer ID Application: ...")
+#   APPLE_ID                     - Apple ID email used for notarization
+#   APPLE_PASSWORD               - App-specific password for the Apple ID
+#   APPLE_TEAM_ID                - Apple Developer Team ID
+#
+# Without these secrets the DMG will build and upload but will NOT be
+# notarized/stapled — fine for direct/dev distribution, but Gatekeeper will
+# warn end-users on first launch. Add the secrets when you are ready for
+# production distribution through direct download.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Build and release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'AWS Thathoo ${{ github.ref_name }}'
+          releaseBody: 'Download the .dmg below for macOS (Apple Silicon + Intel universal binary).'
+          releaseDraft: true
+          prerelease: false
+          args: --target universal-apple-darwin

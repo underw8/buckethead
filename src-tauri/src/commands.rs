@@ -4,6 +4,9 @@ use aws_sdk_s3::config::Region;
 use aws_sdk_s3::presigning::PresigningConfig;
 use aws_sdk_s3::Client;
 use serde::Serialize;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
+use std::sync::Arc;
 use std::time::Duration;
 use tauri::State;
 
@@ -46,6 +49,30 @@ fn make_client(sdk_config: &aws_config::SdkConfig, region: &str) -> Client {
         .region(Region::new(region.to_string()))
         .build();
     Client::from_conf(s3_conf)
+}
+
+// Returns a cached S3 client for the given region, creating one if needed.
+async fn get_cached_client(
+    state: &State<'_, AppState>,
+    region: &str,
+) -> Result<Arc<Client>, String> {
+    // Fast path: check cache with read lock
+    {
+        let s = state.0.read().await;
+        if let Some(c) = s.clients.get(region) {
+            return Ok(Arc::clone(c));
+        }
+    }
+    // Slow path: build and insert with write lock
+    let mut s = state.0.write().await;
+    // Re-check after acquiring write lock (another task may have inserted it)
+    if let Some(c) = s.clients.get(region) {
+        return Ok(Arc::clone(c));
+    }
+    let cfg = s.sdk_config.as_ref().ok_or("Not connected")?;
+    let client = Arc::new(make_client(cfg, region));
+    s.clients.insert(region.to_string(), Arc::clone(&client));
+    Ok(client)
 }
 
 // Returns the bucket's actual AWS region (cached on AppState).
@@ -141,8 +168,9 @@ pub async fn set_profile(
 
     let client = make_client(&sdk_config, "us-east-1");
 
-    // list_buckets requires s3:ListAllMyBuckets. If denied, fall back to
-    // IAM policy introspection to discover buckets from s3:ListBucket ARNs.
+    // list_buckets requires s3:ListAllMyBuckets. If denied (AccessDenied),
+    // swallow and return empty — user can add buckets manually. All other
+    // errors (bad credentials, SSO expiry, network) are surfaced.
     let buckets = match client.list_buckets().send().await {
         Ok(resp) => resp
             .buckets()
@@ -152,13 +180,27 @@ pub async fn set_profile(
                 created: b.creation_date().map(|d| aws_dt_rfc3339(d)),
             })
             .collect(),
-        Err(_) => vec![],
+        Err(e) => {
+            let msg = e.to_string();
+            let lower = msg.to_lowercase();
+            if lower.contains("access denied") || lower.contains("accessdenied") {
+                // Permission denied on ListAllMyBuckets — not a fatal error
+                vec![]
+            } else if (lower.contains("token") || lower.contains("sso")) && lower.contains("expir") {
+                return Err(format!("SSO_EXPIRED::{}", profile));
+            } else if lower.contains("credential") || lower.contains("no credentials") {
+                return Err(format!("CREDENTIALS_ERROR::{}", msg));
+            } else {
+                return Err(msg);
+            }
+        }
     };
 
     {
         let mut s = state.0.write().await;
         s.sdk_config = Some(sdk_config);
         s.bucket_regions.clear();
+        s.clients.clear();
     }
 
     Ok(buckets)
@@ -207,11 +249,7 @@ pub async fn list_objects(
 
     let region = bucket_region(&state, &bucket, &fallback).await;
 
-    let client = {
-        let s = state.0.read().await;
-        let cfg = s.sdk_config.as_ref().ok_or("Not connected")?;
-        make_client(cfg, &region)
-    };
+    let client = get_cached_client(&state, &region).await?;
 
     let mut req = client
         .list_objects_v2()
@@ -270,13 +308,9 @@ pub async fn presign_url(
 
     let region = bucket_region(&state, &bucket, &fallback).await;
 
-    let client = {
-        let s = state.0.read().await;
-        let cfg = s.sdk_config.as_ref().ok_or("Not connected")?;
-        make_client(cfg, &region)
-    };
+    let client = get_cached_client(&state, &region).await?;
 
-    let secs = expires_in.unwrap_or(600);
+    let secs = expires_in.unwrap_or(600).min(604800_u64);
     let presigning_config = PresigningConfig::expires_in(Duration::from_secs(secs))
         .map_err(|e| e.to_string())?;
 
@@ -311,16 +345,13 @@ pub async fn get_object_text(
 
     let region = bucket_region(&state, &bucket, &fallback).await;
 
-    let client = {
-        let s = state.0.read().await;
-        let cfg = s.sdk_config.as_ref().ok_or("Not connected")?;
-        make_client(cfg, &region)
-    };
+    let client = get_cached_client(&state, &region).await?;
 
     let resp = client
         .get_object()
         .bucket(&bucket)
         .key(&key)
+        .range("bytes=0-2097151")
         .send()
         .await
         .map_err(|e| e.to_string())?;
@@ -332,21 +363,16 @@ pub async fn get_object_text(
         .map_err(|e| e.to_string())?
         .into_bytes();
 
-    if bytes.len() > 2 * 1024 * 1024 {
-        return Err("File too large to preview (> 2 MB)".to_string());
-    }
-
     String::from_utf8(bytes.to_vec())
         .map_err(|_| "File is not valid UTF-8".to_string())
 }
 
 // ── shared bytes helper ───────────────────────────────────────────────────────
 
-async fn get_object_bytes(
+async fn get_object_client(
     bucket: &str,
-    key: &str,
     state: &State<'_, AppState>,
-) -> Result<Vec<u8>, String> {
+) -> Result<Arc<Client>, String> {
     let fallback = {
         let s = state.0.read().await;
         s.sdk_config
@@ -355,19 +381,7 @@ async fn get_object_bytes(
             .unwrap_or_else(|| "us-east-1".to_string())
     };
     let region = bucket_region(state, bucket, &fallback).await;
-    let client = {
-        let s = state.0.read().await;
-        let cfg = s.sdk_config.as_ref().ok_or("Not connected")?;
-        make_client(cfg, &region)
-    };
-    let resp = client
-        .get_object()
-        .bucket(bucket)
-        .key(key)
-        .send()
-        .await
-        .map_err(|e| e.to_string())?;
-    Ok(resp.body.collect().await.map_err(|e| e.to_string())?.into_bytes().to_vec())
+    get_cached_client(state, &region).await
 }
 
 // ── save_object ───────────────────────────────────────────────────────────────
@@ -389,8 +403,18 @@ pub async fn save_object(
 
     let Some(dest) = handle else { return Ok(false) };
 
-    let bytes = get_object_bytes(&bucket, &key, &state).await?;
-    std::fs::write(dest.path(), bytes).map_err(|e| e.to_string())?;
+    let client = get_object_client(&bucket, &state).await?;
+    let resp = client
+        .get_object()
+        .bucket(&bucket)
+        .key(&key)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut body = resp.body.into_async_read();
+    let mut file = tokio::fs::File::create(dest.path()).await.map_err(|e| e.to_string())?;
+    tokio::io::copy(&mut body, &mut file).await.map_err(|e| e.to_string())?;
     Ok(true)
 }
 
@@ -404,12 +428,46 @@ pub async fn open_object(
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let filename = key.split('/').last().unwrap_or("file").to_string();
-    let temp_dir = std::env::temp_dir().join("aws-thathoo");
-    std::fs::create_dir_all(&temp_dir).map_err(|e| e.to_string())?;
-    let dest = temp_dir.join(&filename);
+    let tmp_dir = std::env::temp_dir().join("aws-thathoo");
+    std::fs::create_dir_all(&tmp_dir).map_err(|e| e.to_string())?;
 
-    let bytes = get_object_bytes(&bucket, &key, &state).await?;
-    std::fs::write(&dest, bytes).map_err(|e| e.to_string())?;
+    // Task 4: clean up temp files older than 1 day
+    if let Ok(entries) = std::fs::read_dir(&tmp_dir) {
+        let cutoff = std::time::SystemTime::now()
+            - std::time::Duration::from_secs(86400);
+        for entry in entries.flatten() {
+            if let Ok(meta) = entry.metadata() {
+                if meta.modified().map(|m| m < cutoff).unwrap_or(false) {
+                    let _ = std::fs::remove_file(entry.path());
+                }
+            }
+        }
+    }
+
+    // Task 3: hash bucket+key to avoid filename collisions across different prefixes
+    let mut hasher = DefaultHasher::new();
+    format!("{}/{}", bucket, key).hash(&mut hasher);
+    let hash = hasher.finish();
+    let unique_name = format!("{:016x}_{}", hash, filename);
+    let dest = tmp_dir.join(&unique_name);
+
+    // Task 4: remove stale copy before writing fresh data
+    let _ = std::fs::remove_file(&dest);
+
+    // Task 6: stream the download instead of buffering in memory
+    let client = get_object_client(&bucket, &state).await?;
+    let resp = client
+        .get_object()
+        .bucket(&bucket)
+        .key(&key)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let mut body = resp.body.into_async_read();
+    let mut file = tokio::fs::File::create(&dest).await.map_err(|e| e.to_string())?;
+    tokio::io::copy(&mut body, &mut file).await.map_err(|e| e.to_string())?;
+    drop(file);
 
     std::process::Command::new("open")
         .arg(&dest)

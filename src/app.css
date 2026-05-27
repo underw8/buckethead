@@ -342,7 +342,7 @@ body {
   border-top: 1px solid var(--border);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
 }
 
 .error-msg {
@@ -834,4 +834,96 @@ body {
 .preview-unsupported-icon {
   font-size: 36px;
   opacity: 0.3;
+}
+
+/* ── Connect Error Box (ProfileSelector) ── */
+.connect-error-box {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: rgba(244, 112, 104, 0.08);
+  border: 1px solid rgba(244, 112, 104, 0.3);
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.connect-error-title {
+  color: var(--red);
+  font-weight: 500;
+  margin-bottom: 6px;
+}
+
+.connect-error-msg {
+  color: var(--text-1);
+  word-break: break-word;
+}
+
+.connect-error-cmd-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.connect-error-cmd {
+  flex: 1;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  color: var(--text-0);
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 4px 8px;
+  word-break: break-all;
+}
+
+.btn-copy {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-family: inherit;
+  padding: 3px 8px;
+  background: var(--bg-3);
+  border: 1px solid var(--border-hi);
+  border-radius: 4px;
+  color: var(--text-1);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.btn-copy:hover {
+  color: var(--text-0);
+  border-color: var(--accent);
+}
+
+/* ── Presign Error Banner (ObjectBrowser toolbar) ── */
+.presign-error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(244, 112, 104, 0.08);
+  border-bottom: 1px solid rgba(244, 112, 104, 0.25);
+  font-size: 11px;
+}
+
+.presign-error-text {
+  color: var(--red);
+  flex: 1;
+  word-break: break-word;
+}
+
+.presign-error-dismiss {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 2px;
+  transition: color 0.15s;
+}
+
+.presign-error-dismiss:hover {
+  color: var(--red);
 }

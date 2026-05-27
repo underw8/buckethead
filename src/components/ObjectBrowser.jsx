@@ -49,6 +49,7 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
   const [sortKey, setSortKey] = useState('name')
   const [sortDir, setSortDir] = useState(1)
   const [error, setError] = useState(null)
+  const [presignError, setPresignError] = useState(null)
 
   const load = useCallback(async (reset = true) => {
     if (reset) { setLoading(true); setItems({ folders: [], objects: [] }); setNextToken(null) }
@@ -110,8 +111,10 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
         modified: obj.modified,
         ext,
       })
+      setPresignError(null)
     } catch (e) {
       console.error('Presign failed', e)
+      setPresignError(e.message || String(e))
     }
   }
 
@@ -139,6 +142,13 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
           <button className="btn-ghost" onClick={() => load(true)}>↺ Refresh</button>
         </div>
       </div>
+
+      {presignError && (
+        <div className="presign-error-banner">
+          <span className="presign-error-text">Failed to generate preview link: {presignError}</span>
+          <button className="presign-error-dismiss" onClick={() => setPresignError(null)}>✕</button>
+        </div>
+      )}
 
       <div className="file-table-wrap">
         {error && <div style={{ padding: 16, color: 'var(--red)', fontSize: 12 }}>{error}</div>}

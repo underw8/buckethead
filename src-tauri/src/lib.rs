@@ -1,5 +1,8 @@
 mod commands;
+mod error;
 mod s3_client;
+
+pub use error::AppError;
 
 use std::sync::Arc;
 use tokio::sync::RwLock;
