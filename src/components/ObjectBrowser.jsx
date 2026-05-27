@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { s3 } from '../bridge'
 
 const FILE_ICONS = {
@@ -41,14 +41,32 @@ function stripPrefix(key, prefix) {
   return key.startsWith(prefix) ? key.slice(prefix.length) : key
 }
 
-export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPreview }) {
+export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPreview, onBack, onForward, canGoBack, canGoForward }) {
   const [items, setItems] = useState({ folders: [], objects: [] })
   const [loading, setLoading] = useState(false)
   const [nextToken, setNextToken] = useState(null)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [sortKey, setSortKey] = useState('name')
-  const [sortDir, setSortDir] = useState(1)
+  // Task 4: restore sort prefs from localStorage
+  const [sortKey, setSortKey] = useState(() => localStorage.getItem('thathoo:sort-key') || 'name')
+  const [sortDir, setSortDir] = useState(() => Number(localStorage.getItem('thathoo:sort-dir')) || 1)
   const [error, setError] = useState(null)
+  // Task 1: copy-URI feedback
+  const [copiedKey, setCopiedKey] = useState(null)
+  // Task 2: prefix filter
+  const [nameFilter, setNameFilter] = useState('')
+  // Task 6: keyboard selection index
+  const [selectedIdx, setSelectedIdx] = useState(-1)
+  const tableWrapRef = useRef(null)
+
+  // Task 4: persist sort prefs
+  useEffect(() => { localStorage.setItem('thathoo:sort-key', sortKey) }, [sortKey])
+  useEffect(() => { localStorage.setItem('thathoo:sort-dir', String(sortDir)) }, [sortDir])
+
+  // Task 2: clear filter on prefix change
+  useEffect(() => { setNameFilter('') }, [prefix])
+
+  // Task 6: reset selection on bucket/prefix change
+  useEffect(() => { setSelectedIdx(-1) }, [bucket, prefix])
 
   const load = useCallback(async (reset = true) => {
     if (reset) { setLoading(true); setItems({ folders: [], objects: [] }); setNextToken(null) }
@@ -85,6 +103,15 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
     return 0
   })
 
+  // Task 2: client-side filter by basename
+  const lf = nameFilter.toLowerCase()
+  const filteredFolders = nameFilter
+    ? items.folders.filter(f => stripPrefix(f, prefix).replace(/\/$/, '').toLowerCase().includes(lf))
+    : items.folders
+  const filteredObjects = nameFilter
+    ? sortedObjects.filter(o => stripPrefix(o.key, prefix).toLowerCase().includes(lf))
+    : sortedObjects
+
   const breadcrumbs = () => {
     const parts = prefix.split('/').filter(Boolean)
     return [
@@ -115,12 +142,60 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
     }
   }
 
+  // Task 1: copy s3:// URI with 1500ms feedback
+  const handleCopyUri = (e, key) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(`s3://${bucket}/${key}`).then(() => {
+      setCopiedKey(key)
+      setTimeout(() => setCopiedKey(null), 1500)
+    })
+  }
+
+  // Task 6: keyboard navigation
+  const totalRows = filteredFolders.length + filteredObjects.length
+  const handleKeyDown = (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setSelectedIdx(i => Math.min(i + 1, totalRows - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setSelectedIdx(i => Math.max(i - 1, 0))
+    } else if (e.key === 'Enter' && selectedIdx >= 0) {
+      e.preventDefault()
+      if (selectedIdx < filteredFolders.length) {
+        onPrefixChange(filteredFolders[selectedIdx])
+      } else {
+        const obj = filteredObjects[selectedIdx - filteredFolders.length]
+        if (obj) handleFileClick(obj)
+      }
+    } else if (e.key === 'Escape') {
+      setSelectedIdx(-1)
+    }
+  }
+
   const crumbs = breadcrumbs()
   const totalCount = items.folders.length + items.objects.length
+  const hasItems = totalCount > 0
 
   return (
     <div className="object-browser">
       <div className="browser-toolbar">
+        {/* Task 7: back/forward buttons */}
+        <div className="nav-history-btns">
+          <button
+            className="btn-ghost btn-nav-hist"
+            onClick={onBack}
+            disabled={!canGoBack}
+            title="Go back (⌘[)"
+          >←</button>
+          <button
+            className="btn-ghost btn-nav-hist"
+            onClick={onForward}
+            disabled={!canGoForward}
+            title="Go forward (⌘])"
+          >→</button>
+        </div>
+
         <div className="breadcrumb">
           {crumbs.map((c, i) => (
             <span key={c.prefix} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -134,13 +209,30 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
             </span>
           ))}
         </div>
+
         <div className="toolbar-right">
+          {/* Task 2: filter input — only when items exist */}
+          {hasItems && (
+            <input
+              className="toolbar-filter-input"
+              placeholder="Filter…"
+              value={nameFilter}
+              onChange={e => setNameFilter(e.target.value)}
+            />
+          )}
           {!loading && <span className="object-count">{totalCount} items</span>}
           <button className="btn-ghost" onClick={() => load(true)}>↺ Refresh</button>
         </div>
       </div>
 
-      <div className="file-table-wrap">
+      {/* Task 6: tabIndex + onKeyDown for arrow-key nav */}
+      <div
+        className="file-table-wrap"
+        ref={tableWrapRef}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+        style={{ outline: 'none' }}
+      >
         {error && <div style={{ padding: 16, color: 'var(--red)', fontSize: 12 }}>{error}</div>}
 
         <table className="file-table">
@@ -159,10 +251,15 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
               </tr>
             )}
 
-            {!loading && items.folders.map(folder => {
+            {/* Task 6: apply .selected class; Task 2: iterate filteredFolders */}
+            {!loading && filteredFolders.map((folder, idx) => {
               const name = stripPrefix(folder, prefix).replace(/\/$/, '')
               return (
-                <tr key={folder} className="folder-row" onClick={() => onPrefixChange(folder)}>
+                <tr
+                  key={folder}
+                  className={`folder-row${selectedIdx === idx ? ' selected' : ''}`}
+                  onClick={() => onPrefixChange(folder)}
+                >
                   <td>
                     <div className="file-name-cell">
                       <span className="file-type-icon" style={{ color: 'var(--blue)' }}>▷</span>
@@ -176,16 +273,30 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
               )
             })}
 
-            {!loading && sortedObjects.map(obj => {
+            {/* Task 1: copy button; Task 6: .selected class; Task 2: filteredObjects */}
+            {!loading && filteredObjects.map((obj, idx) => {
+              const rowIdx = filteredFolders.length + idx
               const name = stripPrefix(obj.key, prefix)
               if (!name) return null
               const ext = getExt(obj.key)
+              const isCopied = copiedKey === obj.key
               return (
-                <tr key={obj.key} className="file-row" onClick={() => handleFileClick(obj)}>
+                <tr
+                  key={obj.key}
+                  className={`file-row${selectedIdx === rowIdx ? ' selected' : ''}`}
+                  onClick={() => handleFileClick(obj)}
+                >
                   <td>
                     <div className="file-name-cell">
                       <span className="file-type-icon">{getIcon(obj.key)}</span>
                       <span className="file-name-text">{name}</span>
+                      <button
+                        className="copy-uri-btn"
+                        title={`Copy s3://${bucket}/${obj.key}`}
+                        onClick={e => handleCopyUri(e, obj.key)}
+                      >
+                        {isCopied ? <span className="copy-uri-feedback">Copied!</span> : '⎘'}
+                      </button>
                     </div>
                   </td>
                   <td className="file-size">{formatSize(obj.size)}</td>
@@ -205,10 +316,11 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
               </tr>
             )}
 
-            {!loading && totalCount === 0 && (
+            {/* Task 9: differentiated empty state */}
+            {!loading && !error && totalCount === 0 && (
               <tr>
                 <td colSpan={4} style={{ textAlign: 'center', padding: 40, color: 'var(--text-2)' }}>
-                  Empty prefix
+                  This folder is empty — 0 objects, 0 folders
                 </td>
               </tr>
             )}

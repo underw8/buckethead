@@ -835,3 +835,136 @@ body {
   font-size: 36px;
   opacity: 0.3;
 }
+
+/* ── Task 1: Copy URI button ── */
+.copy-uri-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 1;
+  padding: 0 3px;
+  cursor: pointer;
+  border-radius: 2px;
+  flex-shrink: 0;
+  margin-left: 4px;
+}
+
+.file-row:hover .copy-uri-btn {
+  display: inline-flex;
+  align-items: center;
+}
+
+.copy-uri-btn:hover {
+  color: var(--accent);
+  background: var(--bg-3);
+}
+
+.copy-uri-feedback {
+  font-size: 10px;
+  color: var(--green);
+  letter-spacing: 0.05em;
+}
+
+/* ── Task 2: Toolbar filter input ── */
+.toolbar-filter-input {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-0);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 8px;
+  outline: none;
+  width: 120px;
+  transition: border-color 0.15s, width 0.15s;
+}
+
+.toolbar-filter-input:focus {
+  border-color: var(--accent);
+  width: 180px;
+}
+
+.toolbar-filter-input::placeholder {
+  color: var(--text-2);
+}
+
+/* ── Task 3: Bucket filter input ── */
+.bucket-filter-wrap {
+  padding: 4px 10px 6px;
+}
+
+.bucket-filter-input {
+  width: 100%;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-0);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 7px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.bucket-filter-input:focus {
+  border-color: var(--accent);
+}
+
+.bucket-filter-input::placeholder {
+  color: var(--text-2);
+}
+
+/* ── Task 6: Keyboard-selected row ── */
+.file-row.selected td,
+.folder-row.selected td {
+  background: var(--accent-dim, var(--bg-2));
+}
+
+/* ── Task 7: Back/forward nav buttons ── */
+.nav-history-btns {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.btn-nav-hist {
+  padding: 4px 8px;
+  font-size: 12px;
+  min-width: 28px;
+  text-align: center;
+}
+
+.btn-nav-hist:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.btn-nav-hist:disabled:hover {
+  border-color: var(--border);
+  color: var(--text-1);
+  background: transparent;
+}
+
+/* ── Task 8: Sidebar resize handle ── */
+.sidebar {
+  position: relative;
+}
+
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  height: 100%;
+  cursor: col-resize;
+  background: transparent;
+  transition: background 0.15s;
+  z-index: 10;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle:active {
+  background: var(--accent);
+}
