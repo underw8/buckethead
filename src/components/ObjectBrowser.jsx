@@ -47,8 +47,8 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
   const [nextToken, setNextToken] = useState(null)
   const [loadingMore, setLoadingMore] = useState(false)
   // Task 4: restore sort prefs from localStorage
-  const [sortKey, setSortKey] = useState(() => localStorage.getItem('thathoo:sort-key') || 'name')
-  const [sortDir, setSortDir] = useState(() => Number(localStorage.getItem('thathoo:sort-dir')) || 1)
+  const [sortKey, setSortKey] = useState(() => localStorage.getItem('buckethead:sort-key') || 'name')
+  const [sortDir, setSortDir] = useState(() => Number(localStorage.getItem('buckethead:sort-dir')) || 1)
   const [error, setError] = useState(null)
   const [presignError, setPresignError] = useState(null)
   // Task 1: copy-URI feedback
@@ -64,8 +64,8 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
   const tableWrapRef = useRef(null)
 
   // Task 4: persist sort prefs
-  useEffect(() => { localStorage.setItem('thathoo:sort-key', sortKey) }, [sortKey])
-  useEffect(() => { localStorage.setItem('thathoo:sort-dir', String(sortDir)) }, [sortDir])
+  useEffect(() => { localStorage.setItem('buckethead:sort-key', sortKey) }, [sortKey])
+  useEffect(() => { localStorage.setItem('buckethead:sort-dir', String(sortDir)) }, [sortDir])
 
   // Task 2: clear filter on prefix change
   useEffect(() => { setNameFilter('') }, [prefix])

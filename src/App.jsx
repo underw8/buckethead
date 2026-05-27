@@ -5,6 +5,21 @@ import ObjectBrowser from './components/ObjectBrowser'
 import FilePreview from './components/FilePreview'
 import './app.css'
 
+function migrateLocalStorage() {
+  const oldPrefix = 'thathoo:';
+  const newPrefix = 'buckethead:';
+  for (const key of Object.keys(localStorage)) {
+    if (key.startsWith(oldPrefix)) {
+      const newKey = newPrefix + key.slice(oldPrefix.length);
+      if (!localStorage.getItem(newKey)) {
+        localStorage.setItem(newKey, localStorage.getItem(key));
+      }
+      localStorage.removeItem(key);
+    }
+  }
+}
+migrateLocalStorage()
+
 const THEMES = [
   { id: 'default',        label: 'Default',        color: '#f5a623' },
   { id: 'night-owl',      label: 'Night Owl',       color: '#82aaff' },
@@ -30,7 +45,7 @@ export default function App() {
   const [previewWidth, setPreviewWidth] = useState(380)
   // Task 8: resizable sidebar
   const [sidebarWidth, setSidebarWidth] = useState(
-    () => Number(localStorage.getItem('thathoo:sidebar-width')) || 220
+    () => Number(localStorage.getItem('buckethead:sidebar-width')) || 220
   )
   // Task 7: prefix navigation history
   const [prefixHistory, setPrefixHistory] = useState([''])
@@ -83,7 +98,7 @@ export default function App() {
 
   // Task 8: persist sidebar width
   useEffect(() => {
-    localStorage.setItem('thathoo:sidebar-width', sidebarWidth)
+    localStorage.setItem('buckethead:sidebar-width', sidebarWidth)
   }, [sidebarWidth])
 
   // Task 7: keyboard shortcuts for back/forward — inline logic to avoid stale closure
@@ -109,7 +124,7 @@ export default function App() {
     return () => globalThis.removeEventListener('keydown', onKeyDown)
   }, [stage, historyIdx, prefixHistory])
 
-  const storageKey = (p) => `thathoo:manual-buckets:${p}`
+  const storageKey = (p) => `buckethead:manual-buckets:${p}`
 
   const loadManualBuckets = (p) => {
     try { return JSON.parse(localStorage.getItem(storageKey(p)) || '[]') }
@@ -347,7 +362,7 @@ export default function App() {
       <footer className="app-header">
         <div className="app-logo">
           <span className="logo-mark">◈</span>
-          <span className="logo-text">AWS THATHOO</span>
+          <span className="logo-text">BUCKETHEAD</span>
         </div>
         <div className="theme-swatches">
           {THEMES.map(t => (

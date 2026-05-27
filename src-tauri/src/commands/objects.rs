@@ -204,7 +204,7 @@ pub async fn open_object(
     app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
     let filename = key.split('/').last().unwrap_or("file").to_string();
-    let tmp_dir = std::env::temp_dir().join("aws-thathoo");
+    let tmp_dir = std::env::temp_dir().join("buckethead");
     std::fs::create_dir_all(&tmp_dir).map_err(|e| e.to_string())?;
 
     // Clean up temp files older than 1 day

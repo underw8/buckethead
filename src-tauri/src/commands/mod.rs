@@ -100,7 +100,7 @@ pub fn fmt_sdk_err(context: &str, e: &(impl std::fmt::Debug + ProvideErrorMetada
         (None, Some(m))    => m.to_string(),
         (None, None)       => extract_debug_msg(&format!("{e:?}")),
     };
-    warn!("[thathoo] {context} — {summary}\n  debug: {e:?}");
+    warn!("[buckethead] {context} — {summary}\n  debug: {e:?}");
     summary
 }
 

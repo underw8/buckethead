@@ -44,12 +44,12 @@ Two-process model: Vite/React frontend ↔ Tauri IPC ↔ Rust backend.
 - `save_object` / `open_object` both stream in 64 KB chunks and emit `download:progress` events: `{bytes_received, total_bytes, key}`.
 - `get_object_text` fetches via `GetObject` (no CORS) with `Range: bytes=0-2097151` (2 MB cap), returns UTF-8 string.
 - `head_object` returns `ObjectMeta`: `content_type`, `content_length`, `last_modified`, `etag`, `storage_class`, `cache_control`, `content_encoding`, `user_meta: Vec<(String,String)>`.
-- `open_object` downloads to `$TMPDIR/aws-thathoo/<hash16>_<filename>`, cleans files older than 1 day, then calls macOS `open`.
+- `open_object` downloads to `$TMPDIR/buckethead/<hash16>_<filename>`, cleans files older than 1 day, then calls macOS `open`.
 - `extract_debug_msg` / `fmt_sdk_err` — internal helpers that extract human-readable messages from AWS SDK debug strings (SDK wraps connector errors in `DispatchFailure` with empty `ProvideErrorMetadata`).
 
 ### Frontend state (`src/App.jsx`)
 
-Single top-level state machine: `stage ∈ {profile, browser}`. All bucket/prefix/preview state lives here and is passed down as props. Theme is applied via `document.documentElement.setAttribute('data-theme', ...)` and persisted in `localStorage`. Manual bucket additions are persisted under `thathoo:manual-buckets:<profile>` and merged with auto-discovered buckets on connect. Sidebar and preview panel widths are resizable via drag handles; sidebar width persisted under `thathoo:sidebar-width`. Prefix navigation maintains a history stack (`prefixHistory`, `historyIdx`) for back/forward. Auto-update check runs once on mount via `@tauri-apps/plugin-updater`; install triggers relaunch via `@tauri-apps/plugin-process`.
+Single top-level state machine: `stage ∈ {profile, browser}`. All bucket/prefix/preview state lives here and is passed down as props. Theme is applied via `document.documentElement.setAttribute('data-theme', ...)` and persisted in `localStorage`. Manual bucket additions are persisted under `buckethead:manual-buckets:<profile>` and merged with auto-discovered buckets on connect. Sidebar and preview panel widths are resizable via drag handles; sidebar width persisted under `buckethead:sidebar-width`. Prefix navigation maintains a history stack (`prefixHistory`, `historyIdx`) for back/forward. Auto-update check runs once on mount via `@tauri-apps/plugin-updater`; install triggers relaunch via `@tauri-apps/plugin-process`.
 
 ### Theming
 
@@ -68,13 +68,13 @@ Five themes defined as `[data-theme="..."]` CSS variable overrides in `app.css`.
 | Key | Contents |
 |-----|----------|
 | `theme` | active theme id |
-| `thathoo:last-profile` | last successfully connected AWS profile name |
-| `thathoo:manual-buckets:<profile>` | JSON array of manually added bucket names |
-| `thathoo:sidebar-width` | sidebar width in px (number) |
+| `buckethead:last-profile` | last successfully connected AWS profile name |
+| `buckethead:manual-buckets:<profile>` | JSON array of manually added bucket names |
+| `buckethead:sidebar-width` | sidebar width in px (number) |
 
 ## Known constraints
 
 - `s3:GetBucketLocation` is required per bucket for cross-region detection. Without it, the app falls back to `us-east-1` which will fail for buckets in other regions.
-- Bundle identifier: `com.awsthathoo.desktop` (changed from original `.app` suffix which conflicts with macOS bundle extension).
+- Bundle identifier: `io.buckethead.app`.
 - Vite 8 uses OXC (not esbuild) — `vite.config.js` imports `@vitejs/plugin-react-oxc` and sets `minify: 'oxc'`.
-- Auto-update signing: `tauri.conf.json` has `"pubkey": "PLACEHOLDER_PUBLIC_KEY"` — generate a real keypair with `npm run tauri -- signer generate -w ~/.tauri/awsthathoo.key` before shipping. Store private key as `TAURI_SIGNING_PRIVATE_KEY` in CI secrets.
+- Auto-update signing: `tauri.conf.json` has a real pubkey — keypair lives at `~/.tauri/buckethead.key`. Store private key as `TAURI_SIGNING_PRIVATE_KEY` in CI secrets.

@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    aws_thathoo_lib::run();
+    buckethead_lib::run();
 }

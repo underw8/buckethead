@@ -1,16 +1,16 @@
 [package]
-name = "aws-thathoo"
+name = "buckethead"
 version = "1.2.0"
-description = "AWS Thathoo — S3 browser for macOS"
+description = "Buckethead — All HEAD, no PUT. S3 browser for macOS."
 authors = []
 edition = "2021"
 
 [lib]
-name = "aws_thathoo_lib"
+name = "buckethead_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [[bin]]
-name = "aws-thathoo"
+name = "buckethead"
 path = "src/main.rs"
 
 [build-dependencies]

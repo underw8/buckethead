@@ -69,11 +69,11 @@ if $BUILD; then
   if $UNIVERSAL; then
     check_universal_targets
     TARGET_ARGS=(--target universal-apple-darwin)
-    DMG_PATH="src-tauri/target/universal-apple-darwin/release/bundle/dmg/AWS Thathoo_${NEW}_universal.dmg"
+    DMG_PATH="src-tauri/target/universal-apple-darwin/release/bundle/dmg/Buckethead_${NEW}_universal.dmg"
     echo "Building universal release (aarch64 + x86_64)..."
   else
     TARGET_ARGS=()
-    DMG_PATH="src-tauri/target/release/bundle/dmg/AWS Thathoo_${NEW}_aarch64.dmg"
+    DMG_PATH="src-tauri/target/release/bundle/dmg/Buckethead_${NEW}_aarch64.dmg"
     echo "Building release..."
   fi
 

@@ -1,6 +1,6 @@
-# AWS Thathoo
+# Buckethead
 
-macOS S3 browser built with Tauri v2 + React. ~5 MB bundle. Rust backend via `aws-sdk-s3`.
+All HEAD, no PUT — macOS S3 browser built with Tauri v2 + React. ~5 MB bundle. Rust backend via `aws-sdk-s3`.
 
 ## Features
 
@@ -34,7 +34,7 @@ npm run tauri dev
 npm run tauri build
 ```
 
-Output: `src-tauri/target/release/bundle/dmg/AWS Thathoo_1.0.0_aarch64.dmg`
+Output: `src-tauri/target/release/bundle/dmg/Buckethead_1.0.0_aarch64.dmg`
 
 ## Minimum IAM permissions
 

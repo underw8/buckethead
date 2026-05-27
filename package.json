@@ -1,7 +1,7 @@
 {
-  "name": "aws-thathoo",
+  "name": "buckethead",
   "version": "1.2.0",
-  "description": "AWS Thathoo — S3 browser for macOS",
+  "description": "Buckethead — All HEAD, no PUT. S3 browser for macOS.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

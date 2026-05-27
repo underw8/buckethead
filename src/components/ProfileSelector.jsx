@@ -53,7 +53,7 @@ export default function ProfileSelector({ onConnected }) {
       .then(p => {
         setProfiles(p)
         if (p.length > 0) {
-          const last = localStorage.getItem('thathoo:last-profile')
+          const last = localStorage.getItem('buckethead:last-profile')
           const found = last && p.find(x => x.name === last)
           setSelected(found ? found.name : p[0].name)
         }
@@ -70,7 +70,7 @@ export default function ProfileSelector({ onConnected }) {
     setMfaToken('')
     try {
       const buckets = await aws.setProfile(selected)
-      localStorage.setItem('thathoo:last-profile', selected)
+      localStorage.setItem('buckethead:last-profile', selected)
       onConnected({ profile: selected, buckets })
     } catch (e) {
       const msg = typeof e === 'string' ? e : (e.message || 'Connection failed')
@@ -154,7 +154,7 @@ export default function ProfileSelector({ onConnected }) {
                     setMfaLoading(true)
                     try {
                       const buckets = await aws.setProfileMfa(selected, mfaToken)
-                      localStorage.setItem('thathoo:last-profile', selected)
+                      localStorage.setItem('buckethead:last-profile', selected)
                       onConnected({ profile: selected, buckets })
                     } catch (e) {
                       setConnectError(typeof e === 'string' ? e : (e.message || 'MFA verification failed'))

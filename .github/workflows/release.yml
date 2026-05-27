@@ -1,4 +1,4 @@
-# GitHub Actions release workflow for AWS Thathoo
+# GitHub Actions release workflow for Buckethead
 #
 # Triggered on version tags (e.g. v1.2.3). Builds a universal macOS DMG
 # (Apple Silicon + Intel) via Tauri and publishes a draft GitHub Release.
@@ -49,7 +49,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'AWS Thathoo ${{ github.ref_name }}'
+          releaseName: 'Buckethead ${{ github.ref_name }}'
           releaseBody: 'Download the .dmg below for macOS (Apple Silicon + Intel universal binary).'
           releaseDraft: true
           prerelease: false
