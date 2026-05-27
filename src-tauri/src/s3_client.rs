@@ -11,4 +11,4 @@ pub struct S3State {
     pub clients: HashMap<String, Arc<Client>>,
 }
 
-pub struct AppState(pub Arc<RwLock<S3State>>);
+pub struct AppState(pub RwLock<S3State>);

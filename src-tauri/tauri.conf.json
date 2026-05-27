@@ -21,7 +21,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' asset: https://*.s3.amazonaws.com https://*.s3-accelerate.amazonaws.com data: blob:; frame-src 'self' asset: https://*.s3.amazonaws.com https://*.s3-accelerate.amazonaws.com; connect-src https:"
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' asset: https://*.s3.amazonaws.com https://*.s3-accelerate.amazonaws.com data: blob:; frame-src 'self' asset: https://*.s3.amazonaws.com https://*.s3-accelerate.amazonaws.com; connect-src https:"
     }
   },
   "plugins": {
