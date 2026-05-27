@@ -19,6 +19,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::list_profiles,
             commands::set_profile,
+            commands::set_profile_mfa,
             commands::list_buckets,
             commands::list_objects,
             commands::presign_url,

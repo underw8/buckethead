@@ -48,6 +48,9 @@ export default function ProfileSelector({ onConnected }) {
   const [loading, setLoading] = useState(false)
   const [connectError, setConnectError] = useState(null)
   const [loadingProfiles, setLoadingProfiles] = useState(true)
+  const [mfaRequired, setMfaRequired] = useState(false)
+  const [mfaToken, setMfaToken] = useState('')
+  const [mfaLoading, setMfaLoading] = useState(false)
 
   useEffect(() => {
     aws.listProfiles()
@@ -55,7 +58,8 @@ export default function ProfileSelector({ onConnected }) {
         setProfiles(p)
         if (p.length > 0) {
           const last = localStorage.getItem('thathoo:last-profile')
-          setSelected(last && p.includes(last) ? last : p[0])
+          const found = last && p.find(x => x.name === last)
+          setSelected(found ? found.name : p[0].name)
         }
       })
       .catch(() => setConnectError('Could not read ~/.aws/credentials'))
@@ -66,12 +70,19 @@ export default function ProfileSelector({ onConnected }) {
     if (!selected) return
     setLoading(true)
     setConnectError(null)
+    setMfaRequired(false)
+    setMfaToken('')
     try {
       const buckets = await aws.setProfile(selected)
       localStorage.setItem('thathoo:last-profile', selected)
       onConnected({ profile: selected, buckets })
     } catch (e) {
-      setConnectError(typeof e === 'string' ? e : e.message || 'Connection failed')
+      const msg = typeof e === 'string' ? e : (e.message || 'Connection failed')
+      if (msg.startsWith('MFA_REQUIRED::')) {
+        setMfaRequired(true)
+      } else {
+        setConnectError(msg)
+      }
     } finally {
       setLoading(false)
     }
@@ -80,7 +91,17 @@ export default function ProfileSelector({ onConnected }) {
   const handleProfileChange = (e) => {
     setSelected(e.target.value)
     setConnectError(null)
+    setMfaRequired(false)
+    setMfaToken('')
   }
+
+  // Group profiles by account_id
+  const grouped = profiles.reduce((acc, p) => {
+    const key = p.account_id || 'Other'
+    if (!acc[key]) acc[key] = []
+    acc[key].push(p)
+    return acc
+  }, {})
 
   return (
     <div className="profile-screen">
@@ -106,15 +127,57 @@ export default function ProfileSelector({ onConnected }) {
                 {profiles.length === 0 && (
                   <option value="">No profiles found</option>
                 )}
-                {profiles.map(p => (
-                  <option key={p} value={p}>{p}</option>
+                {Object.entries(grouped).map(([account, profs]) => (
+                  <optgroup key={account} label={account === 'Other' ? 'Profiles' : `Account ${account}`}>
+                    {profs.map(p => (
+                      <option key={p.name} value={p.name}>
+                        {p.name}{p.role ? ` (${p.role})` : ''}{p.mfa ? ' 🔐' : ''}{p.sso ? ' [SSO]' : ''}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
             )}
           </div>
 
-          {connectError && (
+          {connectError && !mfaRequired && (
             <ConnectError error={connectError} profile={selected} />
+          )}
+
+          {mfaRequired && (
+            <div className="mfa-prompt">
+              <div className="connect-error-title">MFA token required</div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <input
+                  className="form-input mfa-input"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]{6}"
+                  maxLength={6}
+                  placeholder="000000"
+                  value={mfaToken}
+                  onChange={e => setMfaToken(e.target.value.replace(/\D/g, ''))}
+                  autoFocus
+                />
+                <button
+                  className="btn-primary"
+                  disabled={mfaToken.length !== 6 || mfaLoading}
+                  onClick={async () => {
+                    setMfaLoading(true)
+                    try {
+                      const buckets = await aws.setProfileMfa(selected, mfaToken)
+                      localStorage.setItem('thathoo:last-profile', selected)
+                      onConnected({ profile: selected, buckets })
+                    } catch (e) {
+                      setConnectError(typeof e === 'string' ? e : (e.message || 'MFA verification failed'))
+                      setMfaRequired(false)
+                    } finally {
+                      setMfaLoading(false)
+                    }
+                  }}
+                >{mfaLoading ? 'Verifying…' : 'Submit'}</button>
+              </div>
+            </div>
           )}
         </div>
 
@@ -122,7 +185,7 @@ export default function ProfileSelector({ onConnected }) {
           <button
             className="btn-primary"
             onClick={handleConnect}
-            disabled={loading || !selected || loadingProfiles}
+            disabled={loading || !selected || loadingProfiles || mfaRequired}
           >
             {loading ? 'Connecting…' : 'Connect →'}
           </button>

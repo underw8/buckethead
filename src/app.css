@@ -1075,6 +1075,23 @@ body {
   color: var(--text-2);
 }
 
+/* ── MFA Prompt ── */
+.mfa-prompt {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: rgba(88, 166, 255, 0.06);
+  border: 1px solid rgba(88, 166, 255, 0.25);
+  border-radius: 6px;
+  font-size: 11px;
+}
+.mfa-input {
+  width: 80px;
+  font-family: var(--font-mono);
+  font-size: 16px;
+  letter-spacing: 0.2em;
+  text-align: center;
+}
+
 /* ── Sidebar resize handle ── */
 .sidebar {
   position: relative;
@@ -1118,4 +1135,46 @@ body {
   top: 6px;
   font-size: 10px;
   color: var(--text-2);
+}
+
+/* ── Shiki syntax highlighting ── */
+.preview-highlighted {
+  flex: 1;
+  overflow: auto;
+  font-size: 12px;
+}
+.preview-highlighted pre {
+  margin: 0;
+  padding: 12px;
+  min-height: 100%;
+  background: transparent !important;
+}
+.preview-highlighted .shiki {
+  background: var(--bg-0) !important;
+}
+
+/* ── Jump-to-prefix path bar ── */
+.path-edit-input {
+  flex: 1;
+  background: var(--bg-2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  color: var(--text-0);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 8px;
+  outline: none;
+  min-width: 200px;
+}
+.breadcrumb-wrap {
+  cursor: pointer;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px;
+  border-radius: var(--radius);
+}
+.breadcrumb-wrap:hover {
+  background: var(--bg-2);
 }

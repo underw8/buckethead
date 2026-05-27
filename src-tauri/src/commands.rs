@@ -270,6 +270,8 @@ pub async fn set_profile(
                 vec![]
             } else if (lower.contains("token") || lower.contains("sso")) && lower.contains("expir") {
                 return Err(format!("SSO_EXPIRED::{}", profile));
+            } else if lower.contains("mfa") || lower.contains("multifactor") || lower.contains("token code") {
+                return Err(format!("MFA_REQUIRED::{}", profile));
             } else if lower.contains("credential") || lower.contains("no credentials") {
                 return Err(format!("CREDENTIALS_ERROR::{}", msg));
             } else {
@@ -286,6 +288,62 @@ pub async fn set_profile(
     }
 
     Ok(buckets)
+}
+
+// ── set_profile_mfa ───────────────────────────────────────────────────────────
+
+#[tauri::command]
+pub async fn set_profile_mfa(
+    profile: String,
+    mfa_token: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<BucketInfo>, String> {
+    // Read ~/.aws/config to find the mfa_serial for this profile
+    let home = std::env::var("HOME").unwrap_or_default();
+    let config_path = format!("{}/.aws/config", home);
+    let mut mfa_serial = String::new();
+    let mut in_profile = false;
+    if let Ok(content) = std::fs::read_to_string(&config_path) {
+        for line in content.lines() {
+            let l = line.trim();
+            if l == format!("[profile {}]", profile) || l == format!("[{}]", profile) {
+                in_profile = true;
+            } else if l.starts_with('[') {
+                in_profile = false;
+            } else if in_profile && l.starts_with("mfa_serial") {
+                mfa_serial = l.split('=').nth(1).unwrap_or("").trim().to_string();
+            }
+        }
+    }
+
+    // Call aws sts get-session-token with the MFA token
+    let output = std::process::Command::new("aws")
+        .args(&[
+            "sts", "get-session-token",
+            "--profile", &profile,
+            "--serial-number", &mfa_serial,
+            "--token-code", &mfa_token,
+            "--output", "json",
+        ])
+        .output()
+        .map_err(|e| e.to_string())?;
+
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr).to_string();
+        return Err(format!("MFA failed: {}", err));
+    }
+
+    // Parse the STS response and inject credentials as env vars
+    let resp: serde_json::Value = serde_json::from_slice(&output.stdout)
+        .map_err(|e| e.to_string())?;
+    let creds = &resp["Credentials"];
+
+    std::env::set_var("AWS_ACCESS_KEY_ID", creds["AccessKeyId"].as_str().unwrap_or(""));
+    std::env::set_var("AWS_SECRET_ACCESS_KEY", creds["SecretAccessKey"].as_str().unwrap_or(""));
+    std::env::set_var("AWS_SESSION_TOKEN", creds["SessionToken"].as_str().unwrap_or(""));
+
+    // Now delegate to set_profile which will pick up the env vars
+    set_profile(profile, state).await
 }
 
 // ── list_buckets ──────────────────────────────────────────────────────────────

@@ -12,6 +12,9 @@ export const aws = {
   setProfile: (profile) =>
     invoke('set_profile', { profile }),
 
+  setProfileMfa: (profile, mfaToken) =>
+    invoke('set_profile_mfa', { profile, mfaToken }),
+
   headObject: (bucket, key) =>
     invoke('head_object', { bucket, key }),
 }

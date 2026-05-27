@@ -57,6 +57,10 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
   const [nameFilter, setNameFilter] = useState('')
   // Task 6: keyboard selection index
   const [selectedIdx, setSelectedIdx] = useState(-1)
+  // Jump-to-prefix path bar
+  const [editingPath, setEditingPath] = useState(false)
+  const [pathInput, setPathInput] = useState('')
+  const pathInputRef = useRef(null)
   const tableWrapRef = useRef(null)
 
   // Task 4: persist sort prefs
@@ -121,7 +125,13 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
     ]
   }
 
+  const ARCHIVED_CLASSES = ['GLACIER', 'DEEP_ARCHIVE', 'GLACIER_IR']
+
   const handleFileClick = async (obj) => {
+    if (obj.storage_class && ARCHIVED_CLASSES.includes(obj.storage_class)) {
+      setPresignError(`Object is in ${obj.storage_class} — restore required before preview/download`)
+      return
+    }
     try {
       const url = await s3.presign(bucket, obj.key)
       const ext = getExt(obj.key)
@@ -157,6 +167,12 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
   // Task 6: keyboard navigation
   const totalRows = filteredFolders.length + filteredObjects.length
   const handleKeyDown = (e) => {
+    if (e.key === '/') {
+      e.preventDefault()
+      setEditingPath(true)
+      setPathInput(prefix || '')
+      return
+    }
     if (e.key === 'ArrowDown') {
       e.preventDefault()
       setSelectedIdx(i => Math.min(i + 1, totalRows - 1))
@@ -200,17 +216,46 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
         </div>
 
         <div className="breadcrumb">
-          {crumbs.map((c, i) => (
-            <span key={c.prefix} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              {i > 0 && <span className="breadcrumb-sep">/</span>}
-              <span
-                className={`breadcrumb-item ${i === crumbs.length - 1 ? 'active' : ''}`}
-                onClick={() => i < crumbs.length - 1 && onPrefixChange(c.prefix)}
-              >
-                {c.label}
-              </span>
-            </span>
-          ))}
+          {editingPath ? (
+            <input
+              ref={pathInputRef}
+              className="path-edit-input"
+              value={pathInput}
+              onChange={e => setPathInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  // Parse: strip leading bucket name if present, extract prefix
+                  let path = pathInput.trim().replace(/^s3:\/\/[^/]+\//, '').replace(/^[^/]+\//, '')
+                  if (!path.endsWith('/') && path !== '') path += '/'
+                  if (path === '/') path = ''
+                  onPrefixChange(path)
+                  setEditingPath(false)
+                }
+                if (e.key === 'Escape') setEditingPath(false)
+              }}
+              onBlur={() => setEditingPath(false)}
+              placeholder={`${bucket}/path/to/folder/`}
+              autoFocus
+            />
+          ) : (
+            <div
+              className="breadcrumb-wrap"
+              onClick={() => { setEditingPath(true); setPathInput(prefix || '') }}
+              title="Click or press / to jump to path"
+            >
+              {crumbs.map((c, i) => (
+                <span key={c.prefix} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {i > 0 && <span className="breadcrumb-sep">/</span>}
+                  <span
+                    className={`breadcrumb-item ${i === crumbs.length - 1 ? 'active' : ''}`}
+                    onClick={ev => { ev.stopPropagation(); i < crumbs.length - 1 && onPrefixChange(c.prefix) }}
+                  >
+                    {c.label}
+                  </span>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="toolbar-right">
@@ -290,6 +335,7 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
               if (!name) return null
               const ext = getExt(obj.key)
               const isCopied = copiedKey === obj.key
+              const isArchived = obj.storage_class && ARCHIVED_CLASSES.includes(obj.storage_class)
               return (
                 <tr
                   key={obj.key}
@@ -300,6 +346,11 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
                     <div className="file-name-cell">
                       <span className="file-type-icon">{getIcon(obj.key)}</span>
                       <span className="file-name-text">{name}</span>
+                      {isArchived && (
+                        <span className="storage-class-badge archived" title={`Storage class: ${obj.storage_class}`}>
+                          {obj.storage_class}
+                        </span>
+                      )}
                       <button
                         className="copy-uri-btn"
                         title={`Copy s3://${bucket}/${obj.key}`}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { s3 } from '../bridge'
+import { s3, aws } from '../bridge'
 
 function formatSize(bytes) {
   if (!bytes && bytes !== 0) return '—'
@@ -42,6 +42,10 @@ export default function FilePreview({ preview, onClose, width }) {
   const [highlighted, setHighlighted] = useState(null)
   // Task 5: image dimensions
   const [imgDims, setImgDims] = useState(null)
+  // HeadObject metadata
+  const [meta, setMeta] = useState(null)
+  const [metaLoading, setMetaLoading] = useState(false)
+  const [metaExpanded, setMetaExpanded] = useState(false)
 
   // Task 5: reset dims when file changes
   useEffect(() => { setImgDims(null) }, [key])
@@ -81,6 +85,17 @@ export default function FilePreview({ preview, onClose, width }) {
       }).catch(() => setHighlighted(null))
     }).catch(() => setHighlighted(null))
   }, [textContent, key])
+
+  // Fetch HeadObject metadata whenever bucket/key changes
+  useEffect(() => {
+    setMeta(null)
+    setMetaExpanded(false)
+    setMetaLoading(true)
+    aws.headObject(bucket, key)
+      .then(m => setMeta(m))
+      .catch(() => setMeta(null))
+      .finally(() => setMetaLoading(false))
+  }, [bucket, key])
 
   const [downloadProgress, setDownloadProgress] = useState(null)
 
@@ -174,6 +189,54 @@ export default function FilePreview({ preview, onClose, width }) {
             {key}
           </span>
         </div>
+
+        {/* Object Metadata expandable section */}
+        <div className="meta-section-toggle">
+          <button
+            className="meta-expand-btn"
+            onClick={() => setMetaExpanded(v => !v)}
+            disabled={metaLoading && !meta}
+          >
+            {metaLoading && !meta
+              ? 'Object Metadata…'
+              : `${metaExpanded ? '▾' : '▸'} Object Metadata`}
+          </button>
+        </div>
+
+        {metaExpanded && meta && (
+          <div className="meta-extra-rows">
+            {meta.content_type && (
+              <div className="meta-row">
+                <span className="meta-key">CONTENT-TYPE</span>
+                <span className="meta-val">{meta.content_type}</span>
+              </div>
+            )}
+            {meta.storage_class && (
+              <div className="meta-row">
+                <span className="meta-key">STORAGE CLASS</span>
+                <span className="meta-val">{meta.storage_class}</span>
+              </div>
+            )}
+            {meta.cache_control && (
+              <div className="meta-row">
+                <span className="meta-key">CACHE-CONTROL</span>
+                <span className="meta-val">{meta.cache_control}</span>
+              </div>
+            )}
+            {meta.content_encoding && (
+              <div className="meta-row">
+                <span className="meta-key">ENCODING</span>
+                <span className="meta-val">{meta.content_encoding}</span>
+              </div>
+            )}
+            {meta.user_meta && meta.user_meta.length > 0 && meta.user_meta.map(([k, v]) => (
+              <div className="meta-row" key={k}>
+                <span className="meta-key" title={`x-amz-meta-${k}`}>{k}</span>
+                <span className="meta-val">{v}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {downloadProgress && (
