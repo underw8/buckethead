@@ -24,6 +24,15 @@
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' asset: https://*.s3.amazonaws.com https://*.s3-accelerate.amazonaws.com data: blob:; frame-src 'self' asset: https://*.s3.amazonaws.com https://*.s3-accelerate.amazonaws.com; connect-src https:"
     }
   },
+  "plugins": {
+    "updater": {
+      "__comment": "Replace PLACEHOLDER_PUBLIC_KEY with the output of: tauri signer generate -w ~/.tauri/awsthathoo.key",
+      "pubkey": "PLACEHOLDER_PUBLIC_KEY",
+      "endpoints": [
+        "https://github.com/underw8/aws-thathoo/releases/latest/download/latest.json"
+      ]
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",

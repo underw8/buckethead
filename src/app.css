@@ -930,27 +930,30 @@ body {
 
 /* ── Copy URI button ── */
 .copy-uri-btn {
-  display: none;
+  display: inline-flex;
+  align-items: center;
   background: none;
   border: none;
   color: var(--text-2);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1;
   padding: 0 3px;
   cursor: pointer;
   border-radius: 2px;
   flex-shrink: 0;
   margin-left: 4px;
+  opacity: 0.3;
+  transition: opacity 0.15s, color 0.15s, background 0.15s;
 }
 
 .file-row:hover .copy-uri-btn {
-  display: inline-flex;
-  align-items: center;
+  opacity: 1;
 }
 
 .copy-uri-btn:hover {
   color: var(--accent);
   background: var(--bg-3);
+  opacity: 1;
 }
 
 .copy-uri-feedback {
@@ -1039,6 +1042,39 @@ body {
   background: transparent;
 }
 
+/* ── Update banner ── */
+.update-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  background: var(--accent-dim, rgba(88, 166, 255, 0.1));
+  border-bottom: 1px solid var(--accent-border, rgba(88, 166, 255, 0.3));
+  font-size: 11px;
+  color: var(--text-1);
+  flex-shrink: 0;
+}
+.update-banner span { flex: 1; }
+.btn-update {
+  font-size: 10px;
+  padding: 3px 8px;
+  background: var(--accent);
+  border: none;
+  color: #000;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.btn-update:hover { filter: brightness(1.1); }
+.btn-update:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-update-dismiss {
+  font-size: 12px;
+  padding: 2px 6px;
+  color: var(--text-2);
+}
+
 /* ── Sidebar resize handle ── */
 .sidebar {
   position: relative;
@@ -1059,4 +1095,27 @@ body {
 .sidebar-resize-handle:hover,
 .sidebar-resize-handle:active {
   background: var(--accent);
+}
+
+/* ── Download Progress ── */
+.download-progress {
+  margin: 6px 14px;
+  height: 4px;
+  background: var(--bg-3);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+.download-progress-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.1s;
+}
+.download-progress-text {
+  position: absolute;
+  right: 0;
+  top: 6px;
+  font-size: 10px;
+  color: var(--text-2);
 }

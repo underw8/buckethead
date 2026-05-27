@@ -25,6 +25,8 @@ export default function App() {
   const [theme, setTheme] = useState(
     () => localStorage.getItem('theme') || 'night-owl'
   )
+  const [updateAvailable, setUpdateAvailable] = useState(null) // { version, body }
+  const [updateInstalling, setUpdateInstalling] = useState(false)
   const [previewWidth, setPreviewWidth] = useState(380)
   // Task 8: resizable sidebar
   const [sidebarWidth, setSidebarWidth] = useState(
@@ -43,6 +45,41 @@ export default function App() {
     else document.documentElement.removeAttribute('data-theme')
     localStorage.setItem('theme', theme)
   }, [theme])
+
+  // Auto-update check — runs once on mount, production only
+  useEffect(() => {
+    if (!window.__TAURI__) return
+    const checkUpdate = async () => {
+      try {
+        const { check } = await import('@tauri-apps/plugin-updater')
+        const update = await check()
+        if (update?.available) {
+          setUpdateAvailable({ version: update.version, body: update.body })
+        }
+      } catch (e) {
+        // Update check failure is non-fatal — silently ignore
+        console.log('Update check failed:', e)
+      }
+    }
+    checkUpdate()
+  }, [])
+
+  const handleInstallUpdate = async () => {
+    if (!updateAvailable) return
+    setUpdateInstalling(true)
+    try {
+      const { check } = await import('@tauri-apps/plugin-updater')
+      const update = await check()
+      if (update?.available) {
+        await update.downloadAndInstall()
+        const { relaunch } = await import('@tauri-apps/plugin-process')
+        await relaunch()
+      }
+    } catch (e) {
+      console.error('Update install failed:', e)
+      setUpdateInstalling(false)
+    }
+  }
 
   // Task 8: persist sidebar width
   useEffect(() => {
@@ -198,6 +235,15 @@ export default function App() {
 
   return (
     <div className="app">
+      {updateAvailable && (
+        <div className="update-banner">
+          <span>Update available: v{updateAvailable.version}</span>
+          <button className="btn-update" onClick={handleInstallUpdate} disabled={updateInstalling}>
+            {updateInstalling ? 'Installing…' : 'Install & Restart'}
+          </button>
+          <button className="btn-ghost btn-update-dismiss" onClick={() => setUpdateAvailable(null)}>✕</button>
+        </div>
+      )}
       <main className="app-body">
         {stage === 'profile' && (
           <ProfileSelector onConnected={handleConnected} />

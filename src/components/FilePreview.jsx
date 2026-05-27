@@ -39,6 +39,7 @@ export default function FilePreview({ preview, onClose, width }) {
   const [textContent, setTextContent] = useState(null)
   const [textLoading, setTextLoading] = useState(false)
   const [textError, setTextError] = useState(null)
+  const [highlighted, setHighlighted] = useState(null)
   // Task 5: image dimensions
   const [imgDims, setImgDims] = useState(null)
 
@@ -56,9 +57,56 @@ export default function FilePreview({ preview, onClose, width }) {
       .finally(() => setTextLoading(false))
   }, [bucket, key, type, ext])
 
-  const handleDownload = () => s3.saveObject(bucket, key)
+  // Syntax highlighting via Shiki
+  useEffect(() => {
+    if (!textContent) { setHighlighted(null); return }
+    const fileExt = key?.split('.').pop()?.toLowerCase() || ''
+    const langMap = {
+      js: 'javascript', jsx: 'jsx', ts: 'typescript', tsx: 'tsx',
+      json: 'json', yaml: 'yaml', yml: 'yaml', xml: 'xml',
+      html: 'html', css: 'css', md: 'markdown', sh: 'bash',
+      py: 'python', rs: 'rust', go: 'go', java: 'java',
+    }
+    const lang = langMap[fileExt]
+    if (!lang) { setHighlighted(null); return }
 
-  const handleOpenExternal = () => s3.openObject(bucket, key)
+    import('shiki').then(({ createHighlighter }) => {
+      createHighlighter({
+        themes: ['github-dark'],
+        langs: [lang],
+      }).then(h => {
+        const html = h.codeToHtml(textContent, { lang, theme: 'github-dark' })
+        setHighlighted(html)
+        h.dispose()
+      }).catch(() => setHighlighted(null))
+    }).catch(() => setHighlighted(null))
+  }, [textContent, key])
+
+  const [downloadProgress, setDownloadProgress] = useState(null)
+
+  const handleDownload = async () => {
+    const unlisten = await s3.onDownloadProgress(p => {
+      if (p.key === key) setDownloadProgress(p)
+    })
+    try {
+      await s3.saveObject(bucket, key)
+    } finally {
+      unlisten()
+      setDownloadProgress(null)
+    }
+  }
+
+  const handleOpenExternal = async () => {
+    const unlisten = await s3.onDownloadProgress(p => {
+      if (p.key === key) setDownloadProgress(p)
+    })
+    try {
+      await s3.openObject(bucket, key)
+    } finally {
+      unlisten()
+      setDownloadProgress(null)
+    }
+  }
 
   return (
     <div className="preview-panel" style={width ? { width } : undefined}>
@@ -87,6 +135,8 @@ export default function FilePreview({ preview, onClose, width }) {
             </div>
           ) : textError ? (
             <div style={{ padding: 16, color: 'var(--red)', fontSize: 11 }}>{textError}</div>
+          ) : highlighted ? (
+            <div className="preview-highlighted" dangerouslySetInnerHTML={{ __html: highlighted }} />
           ) : (
             <pre className="preview-text">{textContent}</pre>
           )
@@ -125,6 +175,21 @@ export default function FilePreview({ preview, onClose, width }) {
           </span>
         </div>
       </div>
+
+      {downloadProgress && (
+        <div className="download-progress">
+          <div className="download-progress-bar" style={{
+            width: downloadProgress.total_bytes > 0
+              ? `${Math.round(downloadProgress.bytes_received / downloadProgress.total_bytes * 100)}%`
+              : '100%'
+          }} />
+          <span className="download-progress-text">
+            {downloadProgress.total_bytes > 0
+              ? `${Math.round(downloadProgress.bytes_received / downloadProgress.total_bytes * 100)}%`
+              : formatSize(downloadProgress.bytes_received)}
+          </span>
+        </div>
+      )}
 
       <div className="preview-actions">
         <button className="btn-primary" onClick={handleDownload} style={{ flex: 1 }}>↓ Download</button>

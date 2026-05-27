@@ -3,6 +3,7 @@
 // Swap this file to target a different backend without touching components.
 
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 
 export const aws = {
   listProfiles: () =>
@@ -10,6 +11,9 @@ export const aws = {
 
   setProfile: (profile) =>
     invoke('set_profile', { profile }),
+
+  headObject: (bucket, key) =>
+    invoke('head_object', { bucket, key }),
 }
 
 export const s3 = {
@@ -38,4 +42,7 @@ export const s3 = {
 
   openObject: (bucket, key) =>
     invoke('open_object', { bucket, key }),
+
+  onDownloadProgress: (callback) =>
+    listen('download:progress', (event) => callback(event.payload)),
 }

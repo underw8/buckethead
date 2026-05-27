@@ -28,6 +28,9 @@ npm-debug.log*
 *.swp
 *.swo
 
+# Claude Code local state
+.claude/
+
 # Release artifacts (keep DMG out of repo)
 *.dmg
 *.app

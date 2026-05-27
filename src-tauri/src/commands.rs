@@ -1,6 +1,7 @@
 use aws_config::BehaviorVersion;
 use aws_config::profile::ProfileFileCredentialsProvider;
 use aws_sdk_s3::config::Region;
+use aws_sdk_s3::error::ProvideErrorMetadata;
 use aws_sdk_s3::presigning::PresigningConfig;
 use aws_sdk_s3::Client;
 use serde::Serialize;
@@ -8,9 +9,20 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::State;
+use tauri::{Emitter, State};
+use tokio::io::AsyncReadExt;
+use tokio::io::AsyncWriteExt;
 
 use crate::s3_client::AppState;
+
+// Format an AWS SDK error with code + message, and print full debug to stderr.
+fn fmt_sdk_err(context: &str, e: &(impl std::fmt::Debug + ProvideErrorMetadata)) -> String {
+    let code = e.code().unwrap_or("unknown_code");
+    let message = e.message().unwrap_or("(no message)");
+    let summary = format!("{code}: {message}");
+    eprintln!("[thathoo] {context} — {summary}\n  debug: {e:?}");
+    summary
+}
 
 // ── Shared types ─────────────────────────────────────────────────────────────
 
@@ -26,6 +38,19 @@ pub struct ObjectInfo {
     pub size: i64,
     pub modified: Option<String>,
     pub etag: Option<String>,
+    pub storage_class: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct ObjectMeta {
+    pub content_type: Option<String>,
+    pub content_length: Option<i64>,
+    pub last_modified: Option<String>,
+    pub etag: Option<String>,
+    pub storage_class: Option<String>,
+    pub cache_control: Option<String>,
+    pub content_encoding: Option<String>,
+    pub user_meta: Vec<(String, String)>,
 }
 
 #[derive(Serialize)]
@@ -122,30 +147,87 @@ async fn bucket_region(
     region
 }
 
+// ── ProfileInfo ───────────────────────────────────────────────────────────────
+
+#[derive(Serialize)]
+pub struct ProfileInfo {
+    pub name: String,
+    pub account_id: Option<String>,
+    pub role: Option<String>,
+    pub sso: bool,
+    pub mfa: bool,
+}
+
 // ── list_profiles ─────────────────────────────────────────────────────────────
 
 #[tauri::command]
-pub async fn list_profiles() -> Result<Vec<String>, String> {
+pub async fn list_profiles() -> Result<Vec<ProfileInfo>, String> {
     let home = std::env::var("HOME").unwrap_or_default();
-    let mut profiles: std::collections::BTreeSet<String> = Default::default();
 
-    for path in &[
-        format!("{}/.aws/credentials", home),
-        format!("{}/.aws/config", home),
-    ] {
-        if let Ok(content) = std::fs::read_to_string(path) {
-            for line in content.lines() {
-                let line = line.trim();
-                if line.starts_with('[') && line.ends_with(']') {
-                    let name = line[1..line.len() - 1].trim();
-                    let name = name.strip_prefix("profile ").unwrap_or(name).trim();
-                    profiles.insert(name.to_string());
+    // Parse ~/.aws/config for rich profile info
+    let config_path = format!("{}/.aws/config", home);
+    let mut profile_map: std::collections::BTreeMap<String, ProfileInfo> = Default::default();
+
+    if let Ok(content) = std::fs::read_to_string(&config_path) {
+        let mut current: Option<String> = None;
+        for line in content.lines() {
+            let line = line.trim();
+            if line.starts_with('[') && line.ends_with(']') {
+                let inner = line[1..line.len() - 1].trim();
+                let name = inner.strip_prefix("profile ").unwrap_or(inner).trim().to_string();
+                profile_map.entry(name.clone()).or_insert_with(|| ProfileInfo {
+                    name: name.clone(),
+                    account_id: None,
+                    role: None,
+                    sso: false,
+                    mfa: false,
+                });
+                current = Some(name);
+            } else if let Some(ref pname) = current {
+                if let Some(entry) = profile_map.get_mut(pname) {
+                    if line.starts_with("sso_account_id") {
+                        if let Some(val) = line.split('=').nth(1) {
+                            entry.account_id = Some(val.trim().to_string());
+                        }
+                    } else if line.starts_with("role_name") {
+                        if let Some(val) = line.split('=').nth(1) {
+                            entry.role = Some(val.trim().to_string());
+                        }
+                    } else if line.starts_with("role_arn") && entry.role.is_none() {
+                        if let Some(val) = line.split('=').nth(1) {
+                            let arn = val.trim();
+                            let basename = arn.split('/').last().unwrap_or(arn);
+                            entry.role = Some(basename.to_string());
+                        }
+                    } else if line.starts_with("sso_start_url") {
+                        entry.sso = true;
+                    } else if line.starts_with("mfa_serial") {
+                        entry.mfa = true;
+                    }
                 }
             }
         }
     }
 
-    Ok(profiles.into_iter().collect())
+    // Also pick up profiles from ~/.aws/credentials that aren't in config
+    let creds_path = format!("{}/.aws/credentials", home);
+    if let Ok(content) = std::fs::read_to_string(&creds_path) {
+        for line in content.lines() {
+            let line = line.trim();
+            if line.starts_with('[') && line.ends_with(']') {
+                let name = line[1..line.len() - 1].trim().to_string();
+                profile_map.entry(name.clone()).or_insert_with(|| ProfileInfo {
+                    name,
+                    account_id: None,
+                    role: None,
+                    sso: false,
+                    mfa: false,
+                });
+            }
+        }
+    }
+
+    Ok(profile_map.into_values().collect())
 }
 
 // ── set_profile ───────────────────────────────────────────────────────────────
@@ -181,7 +263,7 @@ pub async fn set_profile(
             })
             .collect(),
         Err(e) => {
-            let msg = e.to_string();
+            let msg = fmt_sdk_err("set_profile/list_buckets", &e);
             let lower = msg.to_lowercase();
             if lower.contains("access denied") || lower.contains("accessdenied") {
                 // Permission denied on ListAllMyBuckets — not a fatal error
@@ -262,7 +344,7 @@ pub async fn list_objects(
         req = req.continuation_token(token);
     }
 
-    let resp = req.send().await.map_err(|e| e.to_string())?;
+    let resp = req.send().await.map_err(|e| fmt_sdk_err("list_objects", &e))?;
 
     let folders: Vec<String> = resp
         .common_prefixes()
@@ -278,6 +360,7 @@ pub async fn list_objects(
             size: o.size().unwrap_or(0),
             modified: o.last_modified().map(|d| aws_dt_rfc3339(d)),
             etag: o.e_tag().map(|s| s.trim_matches('"').to_string()),
+            storage_class: o.storage_class().map(|s| s.as_str().to_string()),
         })
         .collect();
 
@@ -320,7 +403,7 @@ pub async fn presign_url(
         .key(&key)
         .presigned(presigning_config)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| fmt_sdk_err("presign_url", &e))?;
 
     Ok(url.uri().to_string())
 }
@@ -354,7 +437,7 @@ pub async fn get_object_text(
         .range("bytes=0-2097151")
         .send()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| fmt_sdk_err("get_object_text", &e))?;
 
     let bytes = resp
         .body
@@ -393,6 +476,7 @@ pub async fn save_object(
     bucket: String,
     key: String,
     state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
 ) -> Result<bool, String> {
     let filename = key.split('/').last().unwrap_or("download").to_string();
 
@@ -410,11 +494,24 @@ pub async fn save_object(
         .key(&key)
         .send()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| fmt_sdk_err("save_object", &e))?;
 
     let mut body = resp.body.into_async_read();
+    let total = resp.content_length.unwrap_or(0) as u64;
     let mut file = tokio::fs::File::create(dest.path()).await.map_err(|e| e.to_string())?;
-    tokio::io::copy(&mut body, &mut file).await.map_err(|e| e.to_string())?;
+    let mut received: u64 = 0;
+    let mut buf = vec![0u8; 65536];
+    loop {
+        let n = body.read(&mut buf).await.map_err(|e| e.to_string())?;
+        if n == 0 { break; }
+        file.write_all(&buf[..n]).await.map_err(|e| e.to_string())?;
+        received += n as u64;
+        let _ = app_handle.emit("download:progress", serde_json::json!({
+            "bytes_received": received,
+            "total_bytes": total,
+            "key": key,
+        }));
+    }
     Ok(true)
 }
 
@@ -426,6 +523,7 @@ pub async fn open_object(
     bucket: String,
     key: String,
     state: State<'_, AppState>,
+    app_handle: tauri::AppHandle,
 ) -> Result<(), String> {
     let filename = key.split('/').last().unwrap_or("file").to_string();
     let tmp_dir = std::env::temp_dir().join("aws-thathoo");
@@ -462,11 +560,24 @@ pub async fn open_object(
         .key(&key)
         .send()
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| fmt_sdk_err("open_object", &e))?;
 
     let mut body = resp.body.into_async_read();
+    let total = resp.content_length.unwrap_or(0) as u64;
     let mut file = tokio::fs::File::create(&dest).await.map_err(|e| e.to_string())?;
-    tokio::io::copy(&mut body, &mut file).await.map_err(|e| e.to_string())?;
+    let mut received: u64 = 0;
+    let mut buf = vec![0u8; 65536];
+    loop {
+        let n = body.read(&mut buf).await.map_err(|e| e.to_string())?;
+        if n == 0 { break; }
+        file.write_all(&buf[..n]).await.map_err(|e| e.to_string())?;
+        received += n as u64;
+        let _ = app_handle.emit("download:progress", serde_json::json!({
+            "bytes_received": received,
+            "total_bytes": total,
+            "key": key,
+        }));
+    }
     drop(file);
 
     std::process::Command::new("open")
@@ -474,4 +585,39 @@ pub async fn open_object(
         .spawn()
         .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+// ── head_object ───────────────────────────────────────────────────────────────
+// Returns HeadObject metadata for a single S3 object.
+
+#[tauri::command]
+pub async fn head_object(
+    bucket: String,
+    key: String,
+    state: State<'_, AppState>,
+) -> Result<ObjectMeta, String> {
+    let client = get_object_client(&bucket, &state).await?;
+    let resp = client
+        .head_object()
+        .bucket(&bucket)
+        .key(&key)
+        .send()
+        .await
+        .map_err(|e| fmt_sdk_err("head_object", &e))?;
+
+    let user_meta = resp
+        .metadata()
+        .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+        .unwrap_or_default();
+
+    Ok(ObjectMeta {
+        content_type: resp.content_type().map(str::to_string),
+        content_length: resp.content_length(),
+        last_modified: resp.last_modified().map(|d| aws_dt_rfc3339(d)),
+        etag: resp.e_tag().map(|s| s.trim_matches('"').to_string()),
+        storage_class: resp.storage_class().map(|s| s.as_str().to_string()),
+        cache_control: resp.cache_control().map(str::to_string),
+        content_encoding: resp.content_encoding().map(str::to_string),
+        user_meta,
+    })
 }

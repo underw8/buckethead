@@ -10,8 +10,7 @@ export default function BucketList({ buckets, active, onSelect, manualNames = ne
 
   return (
     <div className="bucket-list">
-      {/* Task 3: filter input above list, only when > 5 buckets */}
-      {buckets.length > 5 && (
+      {buckets.length > 0 && (
         <div className="bucket-filter-wrap">
           <input
             className="bucket-filter-input"
