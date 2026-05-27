@@ -9,13 +9,10 @@ function ConnectError({ error, profile }) {
   const rawMsg = typeof error === 'string' ? error : (error.message || 'Connection failed')
 
   // Strip known prefixes to get the human-readable message
-  const msg = rawMsg.startsWith('SSO_EXPIRED::')
-    ? rawMsg.slice('SSO_EXPIRED::'.length)
-    : rawMsg.startsWith('CREDENTIALS_ERROR::')
-    ? rawMsg.slice('CREDENTIALS_ERROR::'.length)
-    : rawMsg.startsWith('MFA_REQUIRED::')
-    ? rawMsg.slice('MFA_REQUIRED::'.length)
-    : rawMsg
+  let msg = rawMsg
+  if (rawMsg.startsWith('SSO_EXPIRED::')) msg = rawMsg.slice('SSO_EXPIRED::'.length)
+  else if (rawMsg.startsWith('CREDENTIALS_ERROR::')) msg = rawMsg.slice('CREDENTIALS_ERROR::'.length)
+  else if (rawMsg.startsWith('MFA_REQUIRED::')) msg = rawMsg.slice('MFA_REQUIRED::'.length)
 
   const isSso = rawMsg.startsWith('SSO_EXPIRED::')
   const ssoProfile = isSso ? (msg || profile) : null
@@ -105,26 +102,29 @@ export default function ProfileSelector({ onConnected }) {
 
         <div className="profile-card-body">
           <div className="form-group">
-            <label className="form-label">AWS Profile</label>
             {loadingProfiles ? (
               <div style={{ color: 'var(--text-2)', fontSize: 11, padding: '8px 0' }}>
                 <span className="spinner" />Reading profiles…
               </div>
             ) : (
-              <select
-                className="form-select"
-                value={selected}
-                onChange={handleProfileChange}
-              >
-                {profiles.length === 0 && (
-                  <option value="">No profiles found</option>
-                )}
-                {profiles.map(p => (
-                  <option key={p.name} value={p.name}>
-                    {p.name}{p.role ? ` (${p.role})` : ''}{p.mfa ? ' 🔐' : ''}{p.sso ? ' [SSO]' : ''}
-                  </option>
-                ))}
-              </select>
+              <>
+                <label className="form-label" htmlFor="profile-select">AWS Profile</label>
+                <select
+                  id="profile-select"
+                  className="form-select"
+                  value={selected}
+                  onChange={handleProfileChange}
+                >
+                  {profiles.length === 0 && (
+                    <option value="">No profiles found</option>
+                  )}
+                  {profiles.map(p => (
+                    <option key={p.name} value={p.name}>
+                      {p.name}{p.role ? ` (${p.role})` : ''}{p.mfa ? ' 🔐' : ''}{p.sso ? ' [SSO]' : ''}
+                    </option>
+                  ))}
+                </select>
+              </>
             )}
           </div>
 
@@ -144,7 +144,7 @@ export default function ProfileSelector({ onConnected }) {
                   maxLength={6}
                   placeholder="000000"
                   value={mfaToken}
-                  onChange={e => setMfaToken(e.target.value.replace(/\D/g, ''))}
+                  onChange={e => setMfaToken(e.target.value.replaceAll(/\D/g, ''))}
                   autoFocus
                 />
                 <button

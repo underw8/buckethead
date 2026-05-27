@@ -25,7 +25,7 @@ export default function App() {
   const [theme, setTheme] = useState(
     () => localStorage.getItem('theme') || 'night-owl'
   )
-  const [updateAvailable, setUpdateAvailable] = useState(null) // { version, body }
+  const [updateAvailable, setUpdateAvailable] = useState(null)
   const [updateInstalling, setUpdateInstalling] = useState(false)
   const [previewWidth, setPreviewWidth] = useState(380)
   // Task 8: resizable sidebar
@@ -41,14 +41,14 @@ export default function App() {
 
   useEffect(() => {
     const t = theme === 'default' ? null : theme
-    if (t) document.documentElement.setAttribute('data-theme', t)
-    else document.documentElement.removeAttribute('data-theme')
+    if (t) document.documentElement.dataset.theme = t
+    else delete document.documentElement.dataset.theme
     localStorage.setItem('theme', theme)
   }, [theme])
 
   // Auto-update check — runs once on mount, production only
   useEffect(() => {
-    if (!window.__TAURI__) return
+    if (!globalThis.__TAURI__) return
     const checkUpdate = async () => {
       try {
         const { check } = await import('@tauri-apps/plugin-updater')
@@ -105,8 +105,8 @@ export default function App() {
         setPrefix(prefixHistory[newIdx])
       }
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
+    globalThis.addEventListener('keydown', onKeyDown)
+    return () => globalThis.removeEventListener('keydown', onKeyDown)
   }, [stage, historyIdx, prefixHistory])
 
   const storageKey = (p) => `thathoo:manual-buckets:${p}`
@@ -196,11 +196,11 @@ export default function App() {
     }
     const onUp = () => {
       previewDragging.current = false
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
+      globalThis.removeEventListener('mousemove', onMove)
+      globalThis.removeEventListener('mouseup', onUp)
     }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
+    globalThis.addEventListener('mousemove', onMove)
+    globalThis.addEventListener('mouseup', onUp)
   }
 
   // Task 8: sidebar resize
@@ -215,11 +215,11 @@ export default function App() {
     }
     const onUp = () => {
       sidebarDragging.current = false
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
+      globalThis.removeEventListener('mousemove', onMove)
+      globalThis.removeEventListener('mouseup', onUp)
     }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
+    globalThis.addEventListener('mousemove', onMove)
+    globalThis.addEventListener('mouseup', onUp)
   }
 
   const handleDisconnect = () => {
@@ -288,7 +288,16 @@ export default function App() {
               />
 
               {/* Task 8: sidebar resize handle on right edge */}
-              <div className="sidebar-resize-handle" onMouseDown={handleSidebarResizeStart} />
+              <button
+                type="button"
+                className="sidebar-resize-handle"
+                aria-label="Resize sidebar"
+                onMouseDown={handleSidebarResizeStart}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowLeft') setSidebarWidth(w => Math.max(150, w - 10))
+                  if (e.key === 'ArrowRight') setSidebarWidth(w => Math.min(400, w + 10))
+                }}
+              />
             </aside>
 
             <section className="content">
@@ -314,7 +323,16 @@ export default function App() {
 
             {preview && (
               <>
-                <div className="preview-resize-handle" onMouseDown={handleResizeStart} />
+                <button
+                  type="button"
+                  className="preview-resize-handle"
+                  aria-label="Resize preview"
+                  onMouseDown={handleResizeStart}
+                  onKeyDown={(e) => {
+                    if (e.key === 'ArrowLeft') setPreviewWidth(w => Math.min(700, w + 10))
+                    if (e.key === 'ArrowRight') setPreviewWidth(w => Math.max(220, w - 10))
+                  }}
+                />
                 <FilePreview
                   preview={preview}
                   onClose={() => setPreview(null)}
@@ -333,11 +351,14 @@ export default function App() {
         </div>
         <div className="theme-swatches">
           {THEMES.map(t => (
-            <div
+            <button
               key={t.id}
+              type="button"
               className={`theme-swatch${theme === t.id ? ' active' : ''}`}
               style={{ background: t.color }}
               title={t.label}
+              aria-label={`${t.label} theme`}
+              aria-pressed={theme === t.id}
               onClick={() => setTheme(t.id)}
             />
           ))}

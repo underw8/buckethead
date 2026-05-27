@@ -34,16 +34,22 @@ export default function BucketList({ buckets, active, onSelect, manualNames = ne
           <div
             key={name}
             className={`bucket-item ${active === name ? 'active' : ''}`}
-            onClick={() => onSelect(name)}
-            title={name}
           >
-            <span className="bucket-icon">▣</span>
-            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+            <button
+              type="button"
+              className="bucket-item-select"
+              onClick={() => onSelect(name)}
+              title={name}
+            >
+              <span className="bucket-icon">▣</span>
+              <span className="bucket-item-name">{name}</span>
+            </button>
             {isManual && (
               <button
+                type="button"
                 className="bucket-remove-btn"
                 title="Remove"
-                onClick={e => { e.stopPropagation(); onRemove(name) }}
+                onClick={() => onRemove(name)}
               >×</button>
             )}
           </div>

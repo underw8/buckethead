@@ -20,7 +20,7 @@ function formatDate(d) {
 function indentXml(xml) {
   let result = ''
   let depth = 0
-  const lines = xml.replace(/>\s*</g, '>\n<').split('\n')
+  const lines = xml.replaceAll(/>\s*</g, '>\n<').split('\n')
   for (const line of lines) {
     const t = line.trim()
     if (!t) continue
@@ -123,6 +123,8 @@ export default function FilePreview({ preview, onClose, width }) {
     }
   }
 
+  const expandIcon = metaExpanded ? '▾' : '▸'
+
   return (
     <div className="preview-panel" style={width ? { width } : undefined}>
       <div className="preview-header">
@@ -143,19 +145,12 @@ export default function FilePreview({ preview, onClose, width }) {
         {type === 'pdf' && (
           <iframe className="preview-iframe" src={url} title={name} />
         )}
-        {type === 'text' && (
-          textLoading ? (
-            <div style={{ padding: 20, color: 'var(--text-2)', fontSize: 11 }}>
-              <span className="spinner" />Loading…
-            </div>
-          ) : textError ? (
-            <div style={{ padding: 16, color: 'var(--red)', fontSize: 11 }}>{textError}</div>
-          ) : highlighted ? (
-            <div className="preview-highlighted" dangerouslySetInnerHTML={{ __html: highlighted }} />
-          ) : (
-            <pre className="preview-text">{textContent}</pre>
-          )
-        )}
+        {type === 'text' && (() => {
+          if (textLoading) return <div style={{ padding: 20, color: 'var(--text-2)', fontSize: 11 }}><span className="spinner" />Loading…</div>
+          if (textError) return <div style={{ padding: 16, color: 'var(--red)', fontSize: 11 }}>{textError}</div>
+          if (highlighted) return <div className="preview-highlighted" dangerouslySetInnerHTML={{ __html: highlighted }} />
+          return <pre className="preview-text">{textContent}</pre>
+        })()}
         {type === 'binary' && (
           <div className="preview-unsupported">
             <div className="preview-unsupported-icon">◫</div>
@@ -197,9 +192,7 @@ export default function FilePreview({ preview, onClose, width }) {
             onClick={() => setMetaExpanded(v => !v)}
             disabled={metaLoading && !meta}
           >
-            {metaLoading && !meta
-              ? 'Object Metadata…'
-              : `${metaExpanded ? '▾' : '▸'} Object Metadata`}
+            {metaLoading && !meta ? 'Object Metadata…' : `${expandIcon} Object Metadata`}
           </button>
         </div>
 

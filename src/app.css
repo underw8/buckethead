@@ -166,6 +166,7 @@ body {
 }
 
 .sidebar {
+  position: relative;
   width: var(--sidebar-w);
   flex-shrink: 0;
   background: var(--bg-1);
@@ -364,19 +365,40 @@ body {
 .bucket-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 14px;
-  cursor: pointer;
+  gap: 4px;
+  padding: 0 14px 0 0;
   transition: background 0.1s;
   color: var(--text-1);
   font-size: 11px;
   border-left: 2px solid transparent;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.bucket-item:hover {
+.bucket-item-select {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0 7px 14px;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  overflow: hidden;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.bucket-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bucket-item:hover,
+.bucket-item:focus-within {
   background: var(--bg-2);
   color: var(--text-0);
 }
@@ -394,7 +416,8 @@ body {
   border-radius: 2px;
 }
 
-.bucket-item:hover .bucket-remove-btn {
+.bucket-item:hover .bucket-remove-btn,
+.bucket-item:focus-within .bucket-remove-btn {
   display: block;
 }
 
@@ -1093,10 +1116,6 @@ body {
 }
 
 /* ── Sidebar resize handle ── */
-.sidebar {
-  position: relative;
-}
-
 .sidebar-resize-handle {
   position: absolute;
   top: 0;
@@ -1107,6 +1126,9 @@ body {
   background: transparent;
   transition: background 0.15s;
   z-index: 10;
+  border: none;
+  padding: 0;
+  outline: none;
 }
 
 .sidebar-resize-handle:hover,
@@ -1193,7 +1215,7 @@ body {
 }
 .storage-class-badge.archived {
   background: rgba(255, 165, 0, 0.12);
-  color: #e8a000;
+  color: #a06800;
   border-color: rgba(255, 165, 0, 0.3);
 }
 

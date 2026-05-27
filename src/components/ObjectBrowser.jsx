@@ -117,6 +117,11 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
     ? sortedObjects.filter(o => stripPrefix(o.key, prefix).toLowerCase().includes(lf))
     : sortedObjects
 
+  const sortIndicator = (key) => {
+    if (sortKey !== key) return ''
+    return sortDir === 1 ? '↑' : '↓'
+  }
+
   const breadcrumbs = () => {
     const parts = prefix.split('/').filter(Boolean)
     return [
@@ -125,10 +130,10 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
     ]
   }
 
-  const ARCHIVED_CLASSES = ['GLACIER', 'DEEP_ARCHIVE', 'GLACIER_IR']
+  const ARCHIVED_CLASSES = new Set(['GLACIER', 'DEEP_ARCHIVE', 'GLACIER_IR'])
 
   const handleFileClick = async (obj) => {
-    if (obj.storage_class && ARCHIVED_CLASSES.includes(obj.storage_class)) {
+    if (obj.storage_class && ARCHIVED_CLASSES.has(obj.storage_class)) {
       setPresignError(`Object is in ${obj.storage_class} — restore required before preview/download`)
       return
     }
@@ -138,12 +143,16 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
       const isImage = ['jpg','jpeg','png','gif','webp','svg'].includes(ext)
       const isPdf = ext === 'pdf'
       const isText = ['txt','md','log','csv','json','yaml','yml','html','xml','css','js','ts'].includes(ext)
+      let fileType = 'binary'
+      if (isImage) fileType = 'image'
+      else if (isPdf) fileType = 'pdf'
+      else if (isText) fileType = 'text'
       onPreview({
         bucket,
         key: obj.key,
         name: stripPrefix(obj.key, prefix),
         url,
-        type: isImage ? 'image' : isPdf ? 'pdf' : isText ? 'text' : 'binary',
+        type: fileType,
         size: obj.size,
         modified: obj.modified,
         ext,
@@ -284,6 +293,8 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
       <div
         className="file-table-wrap"
         ref={tableWrapRef}
+        role="grid"
+        aria-label="S3 objects"
         tabIndex={0}
         onKeyDown={handleKeyDown}
         style={{ outline: 'none' }}
@@ -293,9 +304,9 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
         <table className="file-table">
           <thead>
             <tr>
-              <th onClick={() => handleSort('name')}>Name {sortKey === 'name' ? (sortDir === 1 ? '↑' : '↓') : ''}</th>
-              <th onClick={() => handleSort('size')}>Size {sortKey === 'size' ? (sortDir === 1 ? '↑' : '↓') : ''}</th>
-              <th onClick={() => handleSort('date')}>Modified {sortKey === 'date' ? (sortDir === 1 ? '↑' : '↓') : ''}</th>
+              <th onClick={() => handleSort('name')}>Name {sortIndicator('name')}</th>
+              <th onClick={() => handleSort('size')}>Size {sortIndicator('size')}</th>
+              <th onClick={() => handleSort('date')}>Modified {sortIndicator('date')}</th>
               <th>Type</th>
             </tr>
           </thead>
@@ -314,6 +325,8 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
                   key={folder}
                   className={`folder-row${selectedIdx === idx ? ' selected' : ''}`}
                   onClick={() => onPrefixChange(folder)}
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter') onPrefixChange(folder) }}
                 >
                   <td>
                     <div className="file-name-cell">
@@ -335,12 +348,14 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
               if (!name) return null
               const ext = getExt(obj.key)
               const isCopied = copiedKey === obj.key
-              const isArchived = obj.storage_class && ARCHIVED_CLASSES.includes(obj.storage_class)
+              const isArchived = obj.storage_class && ARCHIVED_CLASSES.has(obj.storage_class)
               return (
                 <tr
                   key={obj.key}
                   className={`file-row${selectedIdx === rowIdx ? ' selected' : ''}`}
                   onClick={() => handleFileClick(obj)}
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleFileClick(obj) }}
                 >
                   <td>
                     <div className="file-name-cell">

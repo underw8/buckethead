@@ -18,6 +18,51 @@ pub struct ProfileInfo {
     pub mfa: bool,
 }
 
+// ── list_profiles helpers ─────────────────────────────────────────────────────
+
+fn parse_config_val(line: &str) -> Option<String> {
+    line.split('=').nth(1).map(|v| v.trim().to_string())
+}
+
+fn apply_config_line(entry: &mut ProfileInfo, line: &str) {
+    if line.starts_with("sso_account_id") {
+        entry.account_id = parse_config_val(line);
+    } else if line.starts_with("role_name") {
+        entry.role = parse_config_val(line);
+    } else if line.starts_with("role_arn") && entry.role.is_none() {
+        if let Some(arn) = parse_config_val(line) {
+            entry.role = Some(arn.split('/').last().unwrap_or(&arn).to_string());
+        }
+    } else if line.starts_with("sso_start_url") {
+        entry.sso = true;
+    } else if line.starts_with("mfa_serial") {
+        entry.mfa = true;
+    }
+}
+
+fn blank_profile(name: String) -> ProfileInfo {
+    ProfileInfo { name, account_id: None, role: None, sso: false, mfa: false }
+}
+
+fn parse_aws_config(content: &str) -> std::collections::BTreeMap<String, ProfileInfo> {
+    let mut map: std::collections::BTreeMap<String, ProfileInfo> = Default::default();
+    let mut current: Option<String> = None;
+    for line in content.lines() {
+        let line = line.trim();
+        if line.starts_with('[') && line.ends_with(']') {
+            let inner = line[1..line.len() - 1].trim();
+            let name = inner.strip_prefix("profile ").unwrap_or(inner).trim().to_string();
+            map.entry(name.clone()).or_insert_with(|| blank_profile(name.clone()));
+            current = Some(name);
+        } else if let Some(ref pname) = current {
+            if let Some(entry) = map.get_mut(pname) {
+                apply_config_line(entry, line);
+            }
+        }
+    }
+    map
+}
+
 // ── list_profiles ─────────────────────────────────────────────────────────────
 
 #[specta::specta]
@@ -25,65 +70,18 @@ pub struct ProfileInfo {
 pub async fn list_profiles() -> Result<Vec<ProfileInfo>, String> {
     let home = std::env::var("HOME").unwrap_or_default();
 
-    // Parse ~/.aws/config for rich profile info
     let config_path = format!("{}/.aws/config", home);
-    let mut profile_map: std::collections::BTreeMap<String, ProfileInfo> = Default::default();
+    let mut profile_map = std::fs::read_to_string(&config_path)
+        .map(|c| parse_aws_config(&c))
+        .unwrap_or_default();
 
-    if let Ok(content) = std::fs::read_to_string(&config_path) {
-        let mut current: Option<String> = None;
-        for line in content.lines() {
-            let line = line.trim();
-            if line.starts_with('[') && line.ends_with(']') {
-                let inner = line[1..line.len() - 1].trim();
-                let name = inner.strip_prefix("profile ").unwrap_or(inner).trim().to_string();
-                profile_map.entry(name.clone()).or_insert_with(|| ProfileInfo {
-                    name: name.clone(),
-                    account_id: None,
-                    role: None,
-                    sso: false,
-                    mfa: false,
-                });
-                current = Some(name);
-            } else if let Some(ref pname) = current {
-                if let Some(entry) = profile_map.get_mut(pname) {
-                    if line.starts_with("sso_account_id") {
-                        if let Some(val) = line.split('=').nth(1) {
-                            entry.account_id = Some(val.trim().to_string());
-                        }
-                    } else if line.starts_with("role_name") {
-                        if let Some(val) = line.split('=').nth(1) {
-                            entry.role = Some(val.trim().to_string());
-                        }
-                    } else if line.starts_with("role_arn") && entry.role.is_none() {
-                        if let Some(val) = line.split('=').nth(1) {
-                            let arn = val.trim();
-                            let basename = arn.split('/').last().unwrap_or(arn);
-                            entry.role = Some(basename.to_string());
-                        }
-                    } else if line.starts_with("sso_start_url") {
-                        entry.sso = true;
-                    } else if line.starts_with("mfa_serial") {
-                        entry.mfa = true;
-                    }
-                }
-            }
-        }
-    }
-
-    // Also pick up profiles from ~/.aws/credentials that aren't in config
     let creds_path = format!("{}/.aws/credentials", home);
     if let Ok(content) = std::fs::read_to_string(&creds_path) {
         for line in content.lines() {
             let line = line.trim();
             if line.starts_with('[') && line.ends_with(']') {
                 let name = line[1..line.len() - 1].trim().to_string();
-                profile_map.entry(name.clone()).or_insert_with(|| ProfileInfo {
-                    name,
-                    account_id: None,
-                    role: None,
-                    sso: false,
-                    mfa: false,
-                });
+                profile_map.entry(name.clone()).or_insert_with(|| blank_profile(name));
             }
         }
     }
