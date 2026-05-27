@@ -1,0 +1,7 @@
+# rustls-webpki 0.101.7 - DoS via malformed CRL BIT STRING
+# Fixed in 0.103.13 (semver-incompatible with 0.101.x).
+# Transitive: aws-smithy-http-client -> rustls@0.21 -> rustls-webpki@0.101.7
+# AWS SDK for Rust has not yet migrated to rustls@0.22+.
+# Risk: negligible — app only connects to s3.amazonaws.com (well-formed certs,
+# no untrusted CRL input). Remove once AWS SDK bumps to rustls >= 0.22.
+GHSA-82j2-j2ch-gfr8
