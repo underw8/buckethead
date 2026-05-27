@@ -30,10 +30,19 @@ aws-config = { version = "1", features = ["behavior-version-latest"] }
 aws-sdk-s3 = "1"
 aws-credential-types = "1"
 
+# Tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
 # Async + utils
 thiserror = "1"
 chrono = { version = "0.4", features = ["serde"] }
 rfd = "0.15"
+
+# Specta — type-safe IPC bindings
+specta = { version = "=2.0.0-rc.25", features = ["derive"] }
+specta-typescript = "0.0.12"
+tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
 
 [profile.release]
 panic = "abort"

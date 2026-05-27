@@ -26,8 +26,7 @@
   },
   "plugins": {
     "updater": {
-      "__comment": "Replace PLACEHOLDER_PUBLIC_KEY with the output of: tauri signer generate -w ~/.tauri/awsthathoo.key",
-      "pubkey": "PLACEHOLDER_PUBLIC_KEY",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDFGMzBCOTZGMTk4MzA3OEIKUldTTEI0TVpiN2t3SDFnWTZOaWc2WDU3SDgyYUFUcnNZY3RUK3BSbFVxbS9tL3Q3R1dnZkRYUkEK",
       "endpoints": [
         "https://github.com/underw8/aws-thathoo/releases/latest/download/latest.json"
       ]

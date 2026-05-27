@@ -2,6 +2,7 @@ use aws_sdk_s3::error::ProvideErrorMetadata;
 use aws_sdk_s3::Client;
 use std::sync::Arc;
 use tauri::State;
+use tracing::warn;
 
 use crate::s3_client::AppState;
 
@@ -15,24 +16,26 @@ pub use objects::*;
 
 // ── Shared types ─────────────────────────────────────────────────────────────
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, specta::Type)]
 pub struct BucketInfo {
     pub name: String,
     pub created: Option<String>,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, specta::Type)]
 pub struct ObjectInfo {
     pub key: String,
+    #[specta(type = i32)]
     pub size: i64,
     pub modified: Option<String>,
     pub etag: Option<String>,
     pub storage_class: Option<String>,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, specta::Type)]
 pub struct ObjectMeta {
     pub content_type: Option<String>,
+    #[specta(type = Option<i32>)]
     pub content_length: Option<i64>,
     pub last_modified: Option<String>,
     pub etag: Option<String>,
@@ -42,7 +45,7 @@ pub struct ObjectMeta {
     pub user_meta: Vec<(String, String)>,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, specta::Type)]
 pub struct ListObjectsResult {
     pub folders: Vec<String>,
     pub objects: Vec<ObjectInfo>,
@@ -97,7 +100,7 @@ pub fn fmt_sdk_err(context: &str, e: &(impl std::fmt::Debug + ProvideErrorMetada
         (None, Some(m))    => m.to_string(),
         (None, None)       => extract_debug_msg(&format!("{e:?}")),
     };
-    eprintln!("[thathoo] {context} — {summary}\n  debug: {e:?}");
+    warn!("[thathoo] {context} — {summary}\n  debug: {e:?}");
     summary
 }
 

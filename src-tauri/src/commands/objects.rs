@@ -14,6 +14,7 @@ use super::{
 
 // ── list_objects ──────────────────────────────────────────────────────────────
 
+#[specta::specta]
 #[tauri::command]
 pub async fn list_objects(
     bucket: String,
@@ -74,11 +75,12 @@ pub async fn list_objects(
 
 // ── presign_url ───────────────────────────────────────────────────────────────
 
+#[specta::specta]
 #[tauri::command]
 pub async fn presign_url(
     bucket: String,
     key: String,
-    expires_in: Option<u64>,
+    expires_in: Option<u32>,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
     let fallback = {
@@ -93,7 +95,7 @@ pub async fn presign_url(
 
     let client = get_cached_client(&state, &region).await?;
 
-    let secs = expires_in.unwrap_or(600).min(604800_u64);
+    let secs = expires_in.unwrap_or(600).min(604800) as u64;
     let presigning_config = PresigningConfig::expires_in(Duration::from_secs(secs))
         .map_err(|e| e.to_string())?;
 
@@ -112,6 +114,7 @@ pub async fn presign_url(
 // Downloads object content via GetObject (no CORS) and returns as UTF-8 string.
 // Capped at 2 MB — larger files should be downloaded instead.
 
+#[specta::specta]
 #[tauri::command]
 pub async fn get_object_text(
     bucket: String,
@@ -144,6 +147,7 @@ pub async fn get_object_text(
 // Shows native Save dialog, downloads the object, writes to chosen path.
 // Returns false if the user cancelled the dialog.
 
+#[specta::specta]
 #[tauri::command]
 pub async fn save_object(
     bucket: String,
@@ -191,6 +195,7 @@ pub async fn save_object(
 // ── open_object ───────────────────────────────────────────────────────────────
 // Downloads to OS temp dir then opens with the system default app via `open`.
 
+#[specta::specta]
 #[tauri::command]
 pub async fn open_object(
     bucket: String,
@@ -263,6 +268,7 @@ pub async fn open_object(
 // ── head_object ───────────────────────────────────────────────────────────────
 // Returns HeadObject metadata for a single S3 object.
 
+#[specta::specta]
 #[tauri::command]
 pub async fn head_object(
     bucket: String,

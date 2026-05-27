@@ -5,6 +5,7 @@ use super::{BucketInfo, aws_dt_rfc3339, make_client};
 
 // ── list_buckets ──────────────────────────────────────────────────────────────
 
+#[specta::specta]
 #[tauri::command]
 pub async fn list_buckets(state: State<'_, AppState>) -> Result<Vec<BucketInfo>, String> {
     let s = state.0.read().await;

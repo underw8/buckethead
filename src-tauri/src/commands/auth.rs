@@ -9,7 +9,7 @@ use super::{BucketInfo, aws_dt_rfc3339, make_client, fmt_sdk_err, is_sso_expired
 
 // ── ProfileInfo ───────────────────────────────────────────────────────────────
 
-#[derive(Serialize)]
+#[derive(Serialize, specta::Type)]
 pub struct ProfileInfo {
     pub name: String,
     pub account_id: Option<String>,
@@ -20,6 +20,7 @@ pub struct ProfileInfo {
 
 // ── list_profiles ─────────────────────────────────────────────────────────────
 
+#[specta::specta]
 #[tauri::command]
 pub async fn list_profiles() -> Result<Vec<ProfileInfo>, String> {
     let home = std::env::var("HOME").unwrap_or_default();
@@ -92,6 +93,7 @@ pub async fn list_profiles() -> Result<Vec<ProfileInfo>, String> {
 
 // ── set_profile ───────────────────────────────────────────────────────────────
 
+#[specta::specta]
 #[tauri::command]
 pub async fn set_profile(
     profile: String,
@@ -153,6 +155,7 @@ pub async fn set_profile(
 
 // ── set_profile_mfa ───────────────────────────────────────────────────────────
 
+#[specta::specta]
 #[tauri::command]
 pub async fn set_profile_mfa(
     profile: String,
