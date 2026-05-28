@@ -5,13 +5,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "tauri": "tauri",
-    "release:patch": "bash scripts/release.sh patch --build",
-    "release:minor": "bash scripts/release.sh minor --build",
-    "release:major": "bash scripts/release.sh major --build",
-    "bump:patch": "bash scripts/release.sh patch",
-    "bump:minor": "bash scripts/release.sh minor",
-    "bump:major": "bash scripts/release.sh major"
+    "tauri": "tauri"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.0.0",
