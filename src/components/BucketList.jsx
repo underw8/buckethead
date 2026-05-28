@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import PropTypes from 'prop-types'
 
 export default function BucketList({ buckets, active, onSelect, manualNames = new Set(), onRemove }) {
   const { t } = useTranslation()
@@ -59,4 +60,12 @@ export default function BucketList({ buckets, active, onSelect, manualNames = ne
       })}
     </div>
   )
+}
+
+BucketList.propTypes = {
+  buckets: PropTypes.array.isRequired,
+  active: PropTypes.string,
+  onSelect: PropTypes.func.isRequired,
+  manualNames: PropTypes.instanceOf(Set),
+  onRemove: PropTypes.func.isRequired,
 }

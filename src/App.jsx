@@ -82,7 +82,7 @@ export default function App() {
       try {
         const { check } = await import('@tauri-apps/plugin-updater')
         const update = await check()
-        if (update?.available) {
+        if (update) {
           setUpdateAvailable({ version: update.version, body: update.body })
         }
       } catch (e) {
@@ -99,7 +99,7 @@ export default function App() {
     try {
       const { check } = await import('@tauri-apps/plugin-updater')
       const update = await check()
-      if (update?.available) {
+      if (update) {
         await update.downloadAndInstall()
         const { relaunch } = await import('@tauri-apps/plugin-process')
         await relaunch()

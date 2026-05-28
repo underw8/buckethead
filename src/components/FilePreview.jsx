@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import PropTypes from 'prop-types'
 import { s3, aws } from '../bridge'
 
 const LOCALE_MAP = { en: 'en-US', vi: 'vi-VN', ja: 'ja-JP' }
@@ -257,4 +258,19 @@ export default function FilePreview({ preview, onClose, width }) {
       </div>
     </div>
   )
+}
+
+FilePreview.propTypes = {
+  preview: PropTypes.shape({
+    bucket: PropTypes.string.isRequired,
+    key: PropTypes.string.isRequired,
+    name: PropTypes.string,
+    url: PropTypes.string,
+    type: PropTypes.string.isRequired,
+    size: PropTypes.number,
+    modified: PropTypes.string,
+    ext: PropTypes.string,
+  }).isRequired,
+  onClose: PropTypes.func.isRequired,
+  width: PropTypes.number,
 }

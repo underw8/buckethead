@@ -1,3 +1,4 @@
+import PropTypes from 'prop-types'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { s3 } from '../bridge'
@@ -253,20 +254,28 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
               autoFocus
             />
           ) : (
-            <div
-              className="breadcrumb-wrap"
-              onClick={() => { setEditingPath(true); setPathInput(prefix || '') }}
-              title={t('browser.path_hint')}
-            >
+            <div className="breadcrumb-wrap">
               {crumbs.map((c, i) => (
                 <span key={c.prefix} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   {i > 0 && <span className="breadcrumb-sep">/</span>}
-                  <span
-                    className={`breadcrumb-item ${i === crumbs.length - 1 ? 'active' : ''}`}
-                    onClick={ev => { ev.stopPropagation(); i < crumbs.length - 1 && onPrefixChange(c.prefix) }}
-                  >
-                    {c.label}
-                  </span>
+                  {i < crumbs.length - 1 ? (
+                    <button
+                      type="button"
+                      className="breadcrumb-item"
+                      onClick={() => onPrefixChange(c.prefix)}
+                    >
+                      {c.label}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="breadcrumb-item active"
+                      onClick={() => { setEditingPath(true); setPathInput(prefix || '') }}
+                      title={t('browser.path_hint')}
+                    >
+                      {c.label}
+                    </button>
+                  )}
                 </span>
               ))}
             </div>
@@ -411,4 +420,15 @@ export default function ObjectBrowser({ bucket, prefix, onPrefixChange, onPrevie
       </div>
     </div>
   )
+}
+
+ObjectBrowser.propTypes = {
+  bucket: PropTypes.string.isRequired,
+  prefix: PropTypes.string.isRequired,
+  onPrefixChange: PropTypes.func.isRequired,
+  onPreview: PropTypes.func.isRequired,
+  onBack: PropTypes.func.isRequired,
+  onForward: PropTypes.func.isRequired,
+  canGoBack: PropTypes.bool.isRequired,
+  canGoForward: PropTypes.bool.isRequired,
 }

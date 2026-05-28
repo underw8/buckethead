@@ -1,6 +1,95 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
+import PropTypes from 'prop-types'
 import { aws } from '../bridge'
+import mascotKeypair from '../assets/mascot_keypair.png'
+import mascotConsole from '../assets/mascot_console.png'
+import mascotSso from '../assets/mascot_sso.png'
+import mascotLogin from '../assets/mascot_login.png'
+
+function CredentialsHelper({ onClose }) {
+  const { t } = useTranslation()
+  const [copied, setCopied] = useState(null)
+  const profileName = '<profile-name>'
+
+  const methods = [
+    {
+      key: 'keypair',
+      mascot: mascotKeypair,
+      title: t('profile.creds_keypair_title'),
+      desc: t('profile.creds_keypair_desc'),
+      cmd: `aws configure --profile ${profileName}`,
+    },
+    {
+      key: 'console_login',
+      mascot: mascotConsole,
+      title: t('profile.creds_console_title'),
+      desc: t('profile.creds_console_desc'),
+      cmd: `aws login --profile ${profileName}`,
+    },
+    {
+      key: 'sso_config',
+      mascot: mascotSso,
+      title: t('profile.creds_sso_config_title'),
+      desc: t('profile.creds_sso_config_desc'),
+      cmd: `aws configure sso --profile ${profileName}`,
+    },
+  ]
+
+  const copyTimerRef = useRef(null)
+
+  const handleCopy = (key, cmd) => {
+    navigator.clipboard.writeText(cmd).then(() => {
+      setCopied(key)
+      clearTimeout(copyTimerRef.current)
+      copyTimerRef.current = setTimeout(() => setCopied(null), 2000)
+    })
+  }
+
+  useEffect(() => () => clearTimeout(copyTimerRef.current), [])
+
+  useEffect(() => {
+    const handleKey = (e) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handleKey)
+    return () => document.removeEventListener('keydown', handleKey)
+  }, [onClose])
+
+  return (
+    <div className="creds-helper-overlay">
+      <dialog
+        className="creds-helper-modal"
+        open
+        aria-label={t('profile.creds_modal_title')}
+      >
+        <div className="creds-helper-header">
+          <span className="creds-helper-title">{t('profile.creds_modal_title')}</span>
+          <button className="preview-close" onClick={onClose}>✕</button>
+        </div>
+        <div className="creds-helper-body">
+          {methods.map(m => (
+            <div key={m.key} className="creds-method-card">
+              <img className="creds-method-mascot" src={m.mascot} alt="" />
+              <div className="creds-method-content">
+                <div className="creds-method-title">{m.title}</div>
+                <div className="creds-method-desc">{m.desc}</div>
+                <div className="connect-error-cmd-row">
+                  <code className="connect-error-cmd">{m.cmd}</code>
+                  <button className="btn-copy" onClick={() => handleCopy(m.key, m.cmd)}>
+                    {copied === m.key ? t('profile.copied') : t('profile.copy')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </dialog>
+    </div>
+  )
+}
+
+CredentialsHelper.propTypes = {
+  onClose: PropTypes.func.isRequired,
+}
 
 function ConnectError({ error, profile }) {
   const { t } = useTranslation()
@@ -40,6 +129,11 @@ function ConnectError({ error, profile }) {
   )
 }
 
+ConnectError.propTypes = {
+  error: PropTypes.oneOfType([PropTypes.string, PropTypes.shape({ message: PropTypes.string })]),
+  profile: PropTypes.string,
+}
+
 export default function ProfileSelector({ onConnected }) {
   const { t } = useTranslation()
   const [profiles, setProfiles] = useState([])
@@ -50,6 +144,8 @@ export default function ProfileSelector({ onConnected }) {
   const [mfaRequired, setMfaRequired] = useState(false)
   const [mfaToken, setMfaToken] = useState('')
   const [mfaLoading, setMfaLoading] = useState(false)
+  const [showCredsHelper, setShowCredsHelper] = useState(false)
+  const handleCloseHelper = useCallback(() => setShowCredsHelper(false), [])
 
   useEffect(() => {
     aws.listProfiles()
@@ -97,10 +193,17 @@ export default function ProfileSelector({ onConnected }) {
 
   return (
     <div className="profile-screen">
+      <div className="login-mascot-wrap">
+        <span className="login-mascot-bubble">{t('profile.welcome_hint')}</span>
+        <img className="login-mascot" src={mascotLogin} alt="" />
+      </div>
       <div className="profile-card">
         <div className="profile-card-header">
           <div className="profile-card-title">{t('profile.connect_to_aws')}</div>
           <div className="profile-card-sub">{t('profile.select_profile_hint')}</div>
+          <button className="creds-help-link" onClick={() => setShowCredsHelper(true)}>
+            {t('profile.creds_help_link')}
+          </button>
         </div>
 
         <div className="profile-card-body">
@@ -182,6 +285,14 @@ export default function ProfileSelector({ onConnected }) {
           </button>
         </div>
       </div>
+
+      {showCredsHelper && (
+        <CredentialsHelper onClose={handleCloseHelper} />
+      )}
     </div>
   )
+}
+
+ProfileSelector.propTypes = {
+  onConnected: PropTypes.func.isRequired,
 }

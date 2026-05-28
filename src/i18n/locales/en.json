@@ -28,7 +28,16 @@
     "connection_failed": "Connection failed",
     "read_credentials_error": "Could not read ~/.aws/credentials",
     "copied": "Copied!",
-    "copy": "Copy"
+    "copy": "Copy",
+    "welcome_hint": "Welcome! Please connect 👋",
+    "creds_help_link": "How to add credentials?",
+    "creds_modal_title": "Adding AWS Credentials",
+    "creds_keypair_title": "Static key pair",
+    "creds_keypair_desc": "Get Access Key ID + Secret from IAM Console, then run:",
+    "creds_console_title": "Console session login",
+    "creds_console_desc": "Sign in via browser using your active AWS Console session:",
+    "creds_sso_config_title": "AWS SSO",
+    "creds_sso_config_desc": "Get SSO start URL & account details from your SSO manager, then run:"
   },
   "bucket": {
     "filter_placeholder": "Filter buckets…",

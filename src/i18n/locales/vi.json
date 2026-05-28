@@ -28,7 +28,16 @@
     "connection_failed": "Kết nối thất bại",
     "read_credentials_error": "Không thể đọc ~/.aws/credentials",
     "copied": "Đã sao chép!",
-    "copy": "Sao chép"
+    "copy": "Sao chép",
+    "welcome_hint": "Bông dua! Bấm kết nối nha bợn 👋",
+    "creds_help_link": "Răng để thêm credentials?",
+    "creds_modal_title": "Thêm AWS Credentials",
+    "creds_keypair_title": "Xài cặp key",
+    "creds_keypair_desc": "Lấy Access Key ID + Secret từ IAM Console, sau đó chạy:",
+    "creds_console_title": "Đăng nhập qua Console",
+    "creds_console_desc": "Đăng nhập qua trình duyệt bằng phiên AWS Console hiện có:",
+    "creds_sso_config_title": "Xài AWS SSO",
+    "creds_sso_config_desc": "Lấy SSO start URL và thông tin tài khoản từ quản trị viên SSO, sau đó chạy:"
   },
   "bucket": {
     "filter_placeholder": "Lọc bucket…",

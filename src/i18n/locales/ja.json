@@ -28,7 +28,16 @@
     "connection_failed": "接続に失敗",
     "read_credentials_error": "~/.aws/credentialsを読み込めません",
     "copied": "コピー済み!",
-    "copy": "コピー"
+    "copy": "コピー",
+    "welcome_hint": "ようこそ！接続してください 👋",
+    "creds_help_link": "認証情報の追加方法",
+    "creds_modal_title": "AWS認証情報の追加",
+    "creds_keypair_title": "静的キーペア",
+    "creds_keypair_desc": "IAMコンソールでAccess Key ID + Secretを取得して実行:",
+    "creds_console_title": "コンソールセッションログイン",
+    "creds_console_desc": "既存のAWSコンソールセッションでブラウザ経由サインイン:",
+    "creds_sso_config_title": "AWS SSO",
+    "creds_sso_config_desc": "SSO管理者からstart URLとアカウント情報を入手して実行:"
   },
   "bucket": {
     "filter_placeholder": "バケットを検索…",
