@@ -1,6 +1,6 @@
 {
   "name": "buckethead",
-  "version": "1.2.0",
+  "version": "0.1.0",
   "description": "Buckethead — All HEAD, no PUT. S3 browser for macOS.",
   "scripts": {
     "dev": "vite",

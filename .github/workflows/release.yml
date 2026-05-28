@@ -40,6 +40,28 @@ jobs:
         with:
           targets: aarch64-apple-darwin,x86_64-apple-darwin
 
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Set version from tag
+        run: |
+          node -e "
+            const fs = require('fs');
+            const version = process.env.GITHUB_REF_NAME.replace(/^v/, '');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = version;
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            const conf = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
+            conf.version = version;
+            fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
+            let cargo = fs.readFileSync('src-tauri/Cargo.toml', 'utf8');
+            cargo = cargo.replace(/^version = \"[^\"]+\"/m, \`version = \"\${version}\"\`);
+            fs.writeFileSync('src-tauri/Cargo.toml', cargo);
+            console.log('Version set to', version);
+          "
+
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
@@ -71,6 +93,28 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Set version from tag
+        run: |
+          node -e "
+            const fs = require('fs');
+            const version = process.env.GITHUB_REF_NAME.replace(/^v/, '');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = version;
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            const conf = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
+            conf.version = version;
+            fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
+            let cargo = fs.readFileSync('src-tauri/Cargo.toml', 'utf8');
+            cargo = cargo.replace(/^version = \"[^\"]+\"/m, \`version = \"\${version}\"\`);
+            fs.writeFileSync('src-tauri/Cargo.toml', cargo);
+            console.log('Version set to', version);
+          "
+
       - name: Install dependencies
         run: npm install --legacy-peer-deps
 
@@ -101,6 +145,11 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
       - name: Install Linux system dependencies
         run: |
           sudo apt-get update
@@ -109,6 +158,23 @@ jobs:
             libappindicator3-dev \
             librsvg2-dev \
             patchelf
+
+      - name: Set version from tag
+        run: |
+          node -e "
+            const fs = require('fs');
+            const version = process.env.GITHUB_REF_NAME.replace(/^v/, '');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.version = version;
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            const conf = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
+            conf.version = version;
+            fs.writeFileSync('src-tauri/tauri.conf.json', JSON.stringify(conf, null, 2) + '\n');
+            let cargo = fs.readFileSync('src-tauri/Cargo.toml', 'utf8');
+            cargo = cargo.replace(/^version = \"[^\"]+\"/m, \`version = \"\${version}\"\`);
+            fs.writeFileSync('src-tauri/Cargo.toml', cargo);
+            console.log('Version set to', version);
+          "
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
