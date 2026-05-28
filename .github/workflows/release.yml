@@ -46,6 +46,7 @@ jobs:
           workspaces: src-tauri
 
       - name: Set version from tag
+        shell: bash
         run: |
           node -e "
             const fs = require('fs');
@@ -99,6 +100,7 @@ jobs:
           workspaces: src-tauri
 
       - name: Set version from tag
+        shell: bash
         run: |
           node -e "
             const fs = require('fs');
@@ -160,6 +162,7 @@ jobs:
             patchelf
 
       - name: Set version from tag
+        shell: bash
         run: |
           node -e "
             const fs = require('fs');
