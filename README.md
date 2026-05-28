@@ -1,6 +1,10 @@
-# Buckethead
+<p align="center">
+  <img src="logo.png" alt="Buckethead" width="160" />
+</p>
 
-All HEAD, no PUT — macOS S3 browser built with Tauri v2 + React. ~5 MB bundle. Rust backend via `aws-sdk-s3`.
+<h1 align="center">Buckethead</h1>
+
+<p align="center">All HEAD, no PUT — S3 browser for macOS, Windows, and Linux.<br>Built with Tauri v2 + React. ~10 MB bundle. Rust backend via <code>aws-sdk-s3</code>.</p>
 
 ## Features
 
@@ -28,13 +32,21 @@ npm install
 npm run tauri dev
 ```
 
-## Build distributable (.dmg)
+## Build
 
 ```bash
 npm run tauri build
 ```
 
-Output: `src-tauri/target/release/bundle/dmg/Buckethead_1.0.0_aarch64.dmg`
+Output: `src-tauri/target/release/bundle/`
+
+## Release
+
+Push a version tag — CI builds all platforms and creates a draft GitHub Release:
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
 
 ## Minimum IAM permissions
 
@@ -88,4 +100,5 @@ src-tauri/                  ← Rust backend
 Uses `ProfileFileCredentialsProvider` from `aws-config`, which supports:
 - Named profiles in `~/.aws/credentials`
 - Role chaining via `~/.aws/config`
-- SSO profiles (run `aws sso login` first)
+- SSO profiles via `aws sso login`
+- AWS Web Console session reuse via `aws login`
