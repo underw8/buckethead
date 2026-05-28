@@ -8,13 +8,10 @@
 #   TAURI_SIGNING_PRIVATE_KEY          - Updater signing private key (base64)
 #   TAURI_SIGNING_PRIVATE_KEY_PASSWORD - Password for the private key (if set)
 #
-# macOS notarization (optional — skip for dev/direct distribution):
-#   APPLE_CERTIFICATE            - Base64-encoded .p12 signing certificate
-#   APPLE_CERTIFICATE_PASSWORD   - Password for the .p12 certificate
-#   APPLE_SIGNING_IDENTITY       - Certificate CN (e.g. "Developer ID Application: ...")
-#   APPLE_ID                     - Apple ID email used for notarization
-#   APPLE_PASSWORD               - App-specific password for the Apple ID
-#   APPLE_TEAM_ID                - Apple Developer Team ID
+# macOS builds are unsigned — Gatekeeper will warn on first launch.
+# To enable notarization, add APPLE_CERTIFICATE, APPLE_CERTIFICATE_PASSWORD,
+# APPLE_SIGNING_IDENTITY, APPLE_ID, APPLE_PASSWORD, APPLE_TEAM_ID secrets
+# and pass them as env vars to the build-macos step.
 
 name: Release
 
@@ -52,12 +49,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Buckethead ${{ github.ref_name }}'
