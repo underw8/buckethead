@@ -1,20 +1,20 @@
 # GitHub Actions release workflow for Buckethead
 #
-# Triggered on version tags (e.g. v1.2.3). Builds a universal macOS DMG
-# (Apple Silicon + Intel) via Tauri and publishes a draft GitHub Release.
+# Triggered on version tags (e.g. v1.2.3). Builds for macOS (universal),
+# Windows (.msi + NSIS), and Linux (.deb + AppImage) via Tauri and publishes
+# a draft GitHub Release with all platform artifacts.
 #
-# Notarization requires the following repository secrets:
+# Required secrets:
+#   TAURI_SIGNING_PRIVATE_KEY          - Updater signing private key (base64)
+#   TAURI_SIGNING_PRIVATE_KEY_PASSWORD - Password for the private key (if set)
+#
+# macOS notarization (optional — skip for dev/direct distribution):
 #   APPLE_CERTIFICATE            - Base64-encoded .p12 signing certificate
 #   APPLE_CERTIFICATE_PASSWORD   - Password for the .p12 certificate
 #   APPLE_SIGNING_IDENTITY       - Certificate CN (e.g. "Developer ID Application: ...")
 #   APPLE_ID                     - Apple ID email used for notarization
 #   APPLE_PASSWORD               - App-specific password for the Apple ID
 #   APPLE_TEAM_ID                - Apple Developer Team ID
-#
-# Without these secrets the DMG will build and upload but will NOT be
-# notarized/stapled — fine for direct/dev distribution, but Gatekeeper will
-# warn end-users on first launch. Add the secrets when you are ready for
-# production distribution through direct download.
 
 name: Release
 
@@ -47,10 +47,87 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Buckethead ${{ github.ref_name }}'
-          releaseBody: 'Download the .dmg below for macOS (Apple Silicon + Intel universal binary).'
+          releaseBody: 'See assets below to download Buckethead for macOS, Windows, and Linux.'
           releaseDraft: true
           prerelease: false
           args: --target universal-apple-darwin
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Build and release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Buckethead ${{ github.ref_name }}'
+          releaseBody: 'See assets below to download Buckethead for macOS, Windows, and Linux.'
+          releaseDraft: true
+          prerelease: false
+
+  build-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Linux system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf
+
+      - name: Install dependencies
+        run: npm install --legacy-peer-deps
+
+      - name: Build and release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          tagName: ${{ github.ref_name }}
+          releaseName: 'Buckethead ${{ github.ref_name }}'
+          releaseBody: 'See assets below to download Buckethead for macOS, Windows, and Linux.'
+          releaseDraft: true
+          prerelease: false
